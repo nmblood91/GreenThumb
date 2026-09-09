@@ -8,11 +8,12 @@ class LedController:
 
     def __init__(self, led_count: int = 60) -> None:
         self.led_count = led_count
-        self.mode: Literal["off", "ambient", "rainbow", "manual"] = "ambient"
+        self.mode: Literal["off", "schedule", "manual", "rainbow"] = "schedule"
         self.color = (0, 255, 128)
+        self.brightness = 75
 
     def set_mode(self, mode: str) -> dict[str, str]:
-        valid_modes = {"off", "ambient", "rainbow", "manual"}
+        valid_modes = {"off", "schedule", "manual", "rainbow"}
         if mode not in valid_modes:
             raise ValueError(f"Unsupported LED mode: {mode}")
         self.mode = mode
@@ -22,6 +23,11 @@ class LedController:
         self.color = color
         self.mode = "manual"
         return {"status": "ok", "color": color, "mode": self.mode}
+
+    def set_brightness(self, brightness: int) -> dict[str, int | str]:
+        clamped = max(0, min(int(brightness), 100))
+        self.brightness = clamped
+        return {"status": "ok", "brightness": self.brightness}
 
     def rainbow_cycle(self) -> dict[str, str]:
         self.mode = "rainbow"

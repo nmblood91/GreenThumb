@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, time
 from typing import Literal
 
 
@@ -10,12 +10,12 @@ class PlantSpec:
     name: str
     zone_id: str
     sensor_address: int
-    moisture_target: float = 45.0
-    watering_volume_ml: int = 180
+    moisture_target: int = 15
+    watering_volume_ml: int = 100
     light_mode: Literal["off", "ambient", "cycle", "manual"] = "ambient"
-    light_start_hour: int = 8
-    light_stop_hour: int = 20
-    position_mm: float = 0.0
+    light_start_time: time = time(8, 0)
+    light_stop_time: time = time(20, 0)
+    position_mm: int = 0
     # Auto-managed LED segment for the global strip. This is calculated by the app,
     # not exposed to the user for manual editing.
     led_start_index: int = 0

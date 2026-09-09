@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, time
 
 from greenthumb.config import settings
 from greenthumb.hardware.klipper_client import KlipperClient
@@ -26,30 +26,12 @@ class GreenThumbAutomation:
         self.leds = leds or LedController(led_count=settings.led_count)
 
         self.plants = [
-            PlantSpec(name="Plant A", zone_id="zone_1", sensor_address=0x36, moisture_target=45.0, watering_volume_ml=180, light_start_hour=8, light_stop_hour=20),
-            PlantSpec(name="Plant B", zone_id="zone_2", sensor_address=0x37, moisture_target=42.0, watering_volume_ml=170, light_start_hour=8, light_stop_hour=20),
-            PlantSpec(name="Plant C", zone_id="zone_3", sensor_address=0x38, moisture_target=48.0, watering_volume_ml=190, light_start_hour=8, light_stop_hour=20),
-            PlantSpec(name="Plant D", zone_id="zone_4", sensor_address=0x39, moisture_target=44.0, watering_volume_ml=175, light_start_hour=8, light_stop_hour=20),
+            PlantSpec(name="Plant A", zone_id="zone_1", sensor_address=0x36, moisture_target=45, watering_volume_ml=180, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=150),
+            PlantSpec(name="Plant B", zone_id="zone_2", sensor_address=0x37, moisture_target=42, watering_volume_ml=170, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=400),
+            PlantSpec(name="Plant C", zone_id="zone_3", sensor_address=0x38, moisture_target=48, watering_volume_ml=190, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=650),
+            PlantSpec(name="Plant D", zone_id="zone_4", sensor_address=0x39, moisture_target=44, watering_volume_ml=175, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=900),
         ]
-        self.apply_default_zone_positions()
         self.apply_default_led_ranges()
-
-    def apply_default_zone_positions(self) -> None:
-        plant_count = len(self.plants)
-        if plant_count == 0:
-            return
-
-        margin = settings.gantry_position_margin_mm
-        rail_length = settings.gantry_rail_length_mm
-        available_length = max(rail_length - (2 * margin), 0.0)
-        if plant_count > 1:
-            step = available_length / (plant_count - 1)
-        else:
-            step = 0.0
-
-        for index, plant in enumerate(self.plants):
-            if plant.position_mm <= 0:
-                plant.position_mm = round(margin + (index * step), 1)
 
     def apply_default_led_ranges(self) -> None:
         plant_count = len(self.plants)
@@ -69,6 +51,19 @@ class GreenThumbAutomation:
 
         if self.plants:
             self.plants[-1].led_end_index = total_leds - 1
+
+    def apply_default_zone_positions(self) -> None:
+        if not self.plants:
+            return
+
+        rail_length = max(float(settings.gantry_rail_length_mm), 1.0)
+        margin = max(float(settings.gantry_position_margin_mm), 0.0)
+        usable_length = max(rail_length - (margin * 2), 1.0)
+        plant_count = len(self.plants)
+
+        for index, plant in enumerate(self.plants):
+            ratio = (index + 1) / (plant_count + 1)
+            plant.position_mm = round(margin + (usable_length * ratio), 1)
 
     def get_zone_positions(self) -> list[dict[str, object]]:
         return [{
@@ -125,6 +120,21 @@ class GreenThumbAutomation:
         result = self.leds.set_mode(mode)
         return {"status": "ok", "mode": result["mode"]}
 
+    def set_light_color(self, color: tuple[int, int, int]) -> dict[str, object]:
+        result = self.leds.set_static_color(color)
+        return {
+            "status": "ok",
+            "mode": result["mode"],
+            "color": result["color"],
+        }
+
+    def set_light_brightness(self, brightness: int) -> dict[str, object]:
+        result = self.leds.set_brightness(brightness)
+        return {
+            "status": "ok",
+            "brightness": result["brightness"],
+        }
+
     def home_motion_axis(self, axis: str) -> dict[str, object]:
         return self.klipper.home_axis(axis)
 
@@ -154,22 +164,22 @@ class GreenThumbAutomation:
         plant.name = name.strip() or plant.name
         return {"status": "ok", "zone_id": zone_id, "name": plant.name}
 
-    def update_light_schedule(self, zone_id: str, start_hour: int, stop_hour: int) -> dict[str, object]:
+    def update_light_schedule(self, zone_id: str, start_time: time, stop_time: time) -> dict[str, object]:
         plant = self.get_plant(zone_id)
         if plant is None:
             raise ValueError(f"Unknown zone_id: {zone_id}")
 
-        if not 0 <= start_hour <= 23 or not 0 <= stop_hour <= 23:
-            raise ValueError("Light hours must be between 0 and 23")
+        if not isinstance(start_time, time) or not isinstance(stop_time, time):
+            raise ValueError("Light times must be valid Python time objects")
 
-        plant.light_start_hour = start_hour
-        plant.light_stop_hour = stop_hour
+        plant.light_start_time = start_time
+        plant.light_stop_time = stop_time
 
         return {
             "status": "ok",
             "zone_id": zone_id,
-            "light_start_hour": plant.light_start_hour,
-            "light_stop_hour": plant.light_stop_hour,
+            "light_start_time": plant.light_start_time.isoformat(timespec="minutes"),
+            "light_stop_time": plant.light_stop_time.isoformat(timespec="minutes"),
         }
 
     def set_led_range(self, zone_id: str, start_index: int, end_index: int) -> dict[str, object]:
@@ -189,4 +199,18 @@ class GreenThumbAutomation:
             "zone_id": zone_id,
             "led_start_index": plant.led_start_index,
             "led_end_index": plant.led_end_index,
+        }
+
+    def update_moisture_target(self, zone_id: str, moisture_target: float) -> dict[str, object]:
+        plant = self.get_plant(zone_id)
+        if plant is None:
+            raise ValueError(f"Unknown zone_id: {zone_id}")
+
+        clamped_target = max(0.0, min(float(moisture_target), 100.0))
+        plant.moisture_target = round(clamped_target, 1)
+
+        return {
+            "status": "ok",
+            "zone_id": zone_id,
+            "moisture_target": plant.moisture_target,
         }
