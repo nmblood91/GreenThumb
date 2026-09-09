@@ -26,11 +26,71 @@ class GreenThumbAutomation:
         self.leds = leds or LedController(led_count=settings.led_count)
 
         self.plants = [
-            PlantSpec(name="Plant A", zone_id="zone_1", sensor_address=0x36, moisture_target=45.0, watering_volume_ml=180),
-            PlantSpec(name="Plant B", zone_id="zone_2", sensor_address=0x37, moisture_target=42.0, watering_volume_ml=170),
-            PlantSpec(name="Plant C", zone_id="zone_3", sensor_address=0x38, moisture_target=48.0, watering_volume_ml=190),
-            PlantSpec(name="Plant D", zone_id="zone_4", sensor_address=0x39, moisture_target=44.0, watering_volume_ml=175),
+            PlantSpec(name="Plant A", zone_id="zone_1", sensor_address=0x36, moisture_target=45.0, watering_volume_ml=180, light_start_hour=8, light_stop_hour=20),
+            PlantSpec(name="Plant B", zone_id="zone_2", sensor_address=0x37, moisture_target=42.0, watering_volume_ml=170, light_start_hour=8, light_stop_hour=20),
+            PlantSpec(name="Plant C", zone_id="zone_3", sensor_address=0x38, moisture_target=48.0, watering_volume_ml=190, light_start_hour=8, light_stop_hour=20),
+            PlantSpec(name="Plant D", zone_id="zone_4", sensor_address=0x39, moisture_target=44.0, watering_volume_ml=175, light_start_hour=8, light_stop_hour=20),
         ]
+        self.apply_default_zone_positions()
+        self.apply_default_led_ranges()
+
+    def apply_default_zone_positions(self) -> None:
+        plant_count = len(self.plants)
+        if plant_count == 0:
+            return
+
+        margin = settings.gantry_position_margin_mm
+        rail_length = settings.gantry_rail_length_mm
+        available_length = max(rail_length - (2 * margin), 0.0)
+        if plant_count > 1:
+            step = available_length / (plant_count - 1)
+        else:
+            step = 0.0
+
+        for index, plant in enumerate(self.plants):
+            if plant.position_mm <= 0:
+                plant.position_mm = round(margin + (index * step), 1)
+
+    def apply_default_led_ranges(self) -> None:
+        plant_count = len(self.plants)
+        if plant_count == 0:
+            return
+
+        total_leds = max(settings.led_count, 1)
+        segment_length = total_leds // plant_count
+        remainder = total_leds % plant_count
+
+        start_index = 0
+        for index, plant in enumerate(self.plants):
+            segment_size = segment_length + (1 if index < remainder else 0)
+            plant.led_start_index = start_index
+            plant.led_end_index = start_index + segment_size - 1
+            start_index += segment_size
+
+        if self.plants:
+            self.plants[-1].led_end_index = total_leds - 1
+
+    def get_zone_positions(self) -> list[dict[str, object]]:
+        return [{
+            "zone_id": plant.zone_id,
+            "name": plant.name,
+            "position_mm": plant.position_mm,
+        } for plant in self.plants]
+
+    def set_zone_position(self, zone_id: str, position_mm: float) -> dict[str, object]:
+        plant = next((item for item in self.plants if item.zone_id == zone_id), None)
+        if plant is None:
+            raise ValueError(f"Unknown zone_id: {zone_id}")
+
+        max_position = settings.gantry_rail_length_mm
+        bounded_position = max(0.0, min(float(position_mm), max_position))
+        plant.position_mm = round(bounded_position, 1)
+
+        return {
+            "status": "ok",
+            "zone_id": zone_id,
+            "position_mm": plant.position_mm,
+        }
 
     def get_overview(self) -> dict[str, object]:
         samples = self.sensor_hub.read_all()
@@ -67,3 +127,66 @@ class GreenThumbAutomation:
 
     def home_motion_axis(self, axis: str) -> dict[str, object]:
         return self.klipper.home_axis(axis)
+
+    def home_gantry(self) -> dict[str, object]:
+        return self.klipper.home_gantry()
+
+    def move_axis_relative(self, x_mm: float = 0.0, y_mm: float = 0.0, z_mm: float = 0.0) -> dict[str, object]:
+        return self.klipper.move_relative(x_mm=x_mm, y_mm=y_mm, z_mm=z_mm)
+
+    def move_gantry_relative(self, distance_mm: float) -> dict[str, object]:
+        return self.klipper.move_gantry_relative(distance_mm)
+
+    def move_to_zone(self, zone_id: str) -> dict[str, object]:
+        plant = next((item for item in self.plants if item.zone_id == zone_id), None)
+        if plant is None:
+            raise ValueError(f"Unknown zone_id: {zone_id}")
+
+        return self.move_gantry_relative(plant.position_mm)
+
+    def get_plant(self, zone_id: str) -> PlantSpec | None:
+        return next((plant for plant in self.plants if plant.zone_id == zone_id), None)
+
+    def update_plant_name(self, zone_id: str, name: str) -> dict[str, object]:
+        plant = self.get_plant(zone_id)
+        if plant is None:
+            raise ValueError(f"Unknown zone_id: {zone_id}")
+        plant.name = name.strip() or plant.name
+        return {"status": "ok", "zone_id": zone_id, "name": plant.name}
+
+    def update_light_schedule(self, zone_id: str, start_hour: int, stop_hour: int) -> dict[str, object]:
+        plant = self.get_plant(zone_id)
+        if plant is None:
+            raise ValueError(f"Unknown zone_id: {zone_id}")
+
+        if not 0 <= start_hour <= 23 or not 0 <= stop_hour <= 23:
+            raise ValueError("Light hours must be between 0 and 23")
+
+        plant.light_start_hour = start_hour
+        plant.light_stop_hour = stop_hour
+
+        return {
+            "status": "ok",
+            "zone_id": zone_id,
+            "light_start_hour": plant.light_start_hour,
+            "light_stop_hour": plant.light_stop_hour,
+        }
+
+    def set_led_range(self, zone_id: str, start_index: int, end_index: int) -> dict[str, object]:
+        plant = self.get_plant(zone_id)
+        if plant is None:
+            raise ValueError(f"Unknown zone_id: {zone_id}")
+
+        total_leds = max(settings.led_count, 1)
+        safe_start = max(0, min(int(start_index), total_leds - 1))
+        safe_end = max(safe_start, min(int(end_index), total_leds - 1))
+
+        plant.led_start_index = safe_start
+        plant.led_end_index = safe_end
+
+        return {
+            "status": "ok",
+            "zone_id": zone_id,
+            "led_start_index": plant.led_start_index,
+            "led_end_index": plant.led_end_index,
+        }

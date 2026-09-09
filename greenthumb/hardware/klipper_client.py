@@ -22,8 +22,16 @@ class KlipperClient:
         payload = {"script": f"G28 {axis.upper()}"}
         return self._request("POST", "/printer/gcode/script", json=payload)
 
+    def home_gantry(self) -> dict[str, Any]:
+        payload = {"script": "G28 X"}
+        return self._request("POST", "/printer/gcode/script", json=payload)
+
     def move_relative(self, x_mm: float = 0.0, y_mm: float = 0.0, z_mm: float = 0.0) -> dict[str, Any]:
         payload = {"script": f"G91\nG1 X{x_mm} Y{y_mm} Z{z_mm} F6000\nG90"}
+        return self._request("POST", "/printer/gcode/script", json=payload)
+
+    def move_gantry_relative(self, distance_mm: float) -> dict[str, Any]:
+        payload = {"script": f"G91\nG1 X{distance_mm} F6000\nG90"}
         return self._request("POST", "/printer/gcode/script", json=payload)
 
     def _request(self, method: str, path: str, *, json: dict[str, Any] | None = None) -> dict[str, Any]:

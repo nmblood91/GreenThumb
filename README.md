@@ -53,6 +53,19 @@ Example:
 
 `curl http://127.0.0.1:8000/api/v1/overview`
 
+## Local web UI
+
+The initial control surface is a single-axis gantry system served from the Pi itself.
+
+- The gantry moves along one solid rail only.
+- Open the app at `http://<pi-host>:8000/`
+- Use the page to home the gantry and jog it in precise steps
+
+The first motion API endpoints are:
+
+- `POST /api/v1/gantry/home`
+- `POST /api/v1/gantry/move`
+
 ## Hardware assumptions
 
 The code is written to be easy to adapt to the actual hardware stack:
