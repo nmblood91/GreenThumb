@@ -65,7 +65,7 @@ if [ ! -d /home/pi/klipper ]; then
   sudo -u pi bash -c 'cd ~ && git clone --depth 1 https://github.com/Klipper3d/klipper.git'
 
   # Install Klipper Python dependencies
-  sudo -u pi bash -c 'cd ~/klipper && pip install greenlet jinja2 markupsafe pyserial'
+  sudo -u pi bash -c 'cd ~/klipper && pip install --break-system-packages greenlet jinja2 markupsafe pyserial'
 
   # Create Klipper systemd service
   cat > /tmp/klipper.service << 'EOF'
