@@ -15,9 +15,29 @@ sudo apt install -y python3-dev libffi-dev build-essential libncurses-dev libusb
 if [ ! -d /home/pi/klipper ]; then
   echo "Installing Klipper host software..."
   sudo -u pi bash -c 'cd ~ && git clone https://github.com/Klipper3d/klipper.git'
+
   # Create Klipper systemd service
-  sudo cp /home/pi/klipper/scripts/klipper.service /etc/systemd/system/klipper.service
-  sudo sed -i 's|ExecStart=.*|ExecStart=/usr/bin/python3 /home/pi/klipper/klippy/klippy.py|' /etc/systemd/system/klipper.service
+  cat > /tmp/klipper.service << 'EOF'
+[Unit]
+Description=Klipper 3D Printer Firmware
+Documentation=https://www.klipper3d.org/
+After=network-online.target
+Wants=network-online.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=simple
+User=pi
+RemainAfterExit=yes
+ExecStart=/usr/bin/python3 /home/pi/klipper/klippy/klippy.py /home/pi/printer_data/config/printer.cfg -l /home/pi/klipper_logs/klippy.log -a /run/klipper_uds
+Restart=always
+RestartSec=10
+EOF
+
+  sudo cp /tmp/klipper.service /etc/systemd/system/klipper.service
+  sudo systemctl daemon-reload
 else
   echo "Klipper already installed, skipping..."
 fi

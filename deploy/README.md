@@ -9,52 +9,51 @@ This folder contains the deployment files needed to run GreenThumb on a Raspberr
 - `klipper/printer.cfg.example` — bare-bones single-axis gantry Klipper template
 - `pi/install-green-thumb.sh` — install script for the Pi
 
-## Quick installation on the Pi
+## Fresh Pi Setup (Recommended)
 
-1. Connect to the Pi via SSH.
-2. Install git (if not already installed):
+For a clean installation with the latest OS, start here:
 
+1. **Flash Pi OS** using [Raspberry Pi Imager](https://www.raspberrypi.com/software/):
+   - Choose **Raspberry Pi OS (64-bit)**
+   - Set hostname: `greenthumb`
+   - Enable SSH
+   - Set username/password (default: `pi` / your password)
+
+2. **Boot the Pi and wait ~2 minutes** for initial setup to complete.
+
+3. **SSH into the Pi**:
+   ```bash
+   ssh pi@greenthumb.local
+   ```
+
+4. **Install git and clone the repo**:
    ```bash
    sudo apt update
    sudo apt install -y git
-   ```
-
-3. Clone the repo into `/opt/greenthumb`:
-
-   ```bash
    sudo git clone https://github.com/nmblood91/GreenThumb.git /opt/greenthumb
    ```
 
-   **Why `/opt`?** This is the Linux standard for third-party applications and system services. It ensures the app persists across reboots/updates, stays isolated from user files, and works properly with systemd services running at startup.
-
-4. Run the install script (installs Klipper, Python backend, React frontend, Nginx):
-
+5. **Run the installation script** (this installs everything):
    ```bash
    sudo bash /opt/greenthumb/deploy/pi/install-green-thumb.sh
    ```
+   This will take 10-15 minutes. Watch for "GreenThumb install complete" at the end.
 
-5. **Configure Klipper**:
-   - If your SKR board was **connected during installation**, the serial ID was auto-detected ✓
-   - If the board **wasn't connected yet**, connect it now and update `~/printer_data/config/printer.cfg`:
-     ```bash
-     ls -la /dev/serial/by-id/  # Find your board's ID
-     # Edit the file and update the [mcu] serial: line
-     nano ~/printer_data/config/printer.cfg
-     ```
-   - Restart Klipper:
-     ```bash
-     sudo systemctl restart klipper
-     ```
+6. **Configure Klipper** (if SKR board is connected):
+   - If auto-detected: ✓ Already configured
+   - If not detected: See **Configure Klipper** section below
 
-6. Verify the API:
-
+7. **Verify everything is running**:
    ```bash
-   curl http://localhost:8000/
+   sudo systemctl status klipper
+   sudo systemctl status greenthumb-api.service
+   sudo systemctl status nginx
    ```
 
-7. Verify the front end:
+8. **Open the web UI**:
+   - Open `http://greenthumb.local` in your browser
+   - Or use the Pi's IP: `http://<pi-ip>`
 
-   - Open `http://<pi-ip>` in a browser
 
 ## Service behavior
 
