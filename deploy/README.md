@@ -68,6 +68,42 @@ This folder contains the deployment files needed to run GreenThumb on a Raspberr
 - Use it as a template and tune the pin map, travel range, and homing settings for your exact machine.
 - The actual X-axis travel and homing logic should be validated with the mechanical machine before production use.
 
+## Troubleshooting
+
+If the installation script disconnects or fails, use these commands to diagnose:
+
+**Check service status:**
+```bash
+sudo systemctl status klipper
+sudo systemctl status greenthumb-api.service
+sudo systemctl status nginx
+```
+
+**Check Klipper logs:**
+```bash
+tail -50 ~/klipper_logs/klippy.log
+```
+
+**Check GreenThumb API logs:**
+```bash
+sudo journalctl -u greenthumb-api.service -n 50
+```
+
+**Verify directories exist:**
+```bash
+ls -la /opt/greenthumb/
+ls -la ~/printer_data/config/
+```
+
+**Restart services if needed:**
+```bash
+sudo systemctl restart klipper
+sudo systemctl restart greenthumb-api.service
+sudo systemctl restart nginx
+```
+
+If the install script fails midway, you can safely re-run it — it checks for existing installations and skips already-completed steps.
+
 ## Safety
 
 - Keep the first gantry tests very short.

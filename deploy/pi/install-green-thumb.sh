@@ -11,12 +11,9 @@ sudo apt install -y git python3-venv python3-pip nginx curl
 echo "Installing Klipper and dependencies..."
 sudo apt install -y python3-dev libffi-dev build-essential libncurses-dev libusb-dev avrdude gcc-arm-none-eabi binutils-arm-none-eabi
 
-# Install Klipper host software
-if [ ! -d "$HOME/klipper" ]; then
-  cd ~
-  git clone https://github.com/Klipper3d/klipper.git
-  cd klipper/scripts
-  bash ./install-octopi.sh
+# Install Klipper host software (must run as pi user, not root)
+if [ ! -d /home/pi/klipper ]; then
+  sudo -u pi bash -c 'cd ~ && git clone https://github.com/Klipper3d/klipper.git && cd klipper/scripts && bash ./install-octopi.sh'
 else
   echo "Klipper already installed, skipping..."
 fi
