@@ -47,11 +47,13 @@
 - Wiring and connectors
 
 ## Power and electronics
-- 24V or 12V main power supply as required
-- DC-DC conversion if needed
-- Fuses and protection
-- Buck converter for 5V logic rails
-- Wiring loom, harness, and cable routing
+- 12V power supply, 5A minimum (7A recommended)
+- DC-DC converter 12V to 5V @ 3A
+- Main inline fuse: 5A fast-blow
+- Pump circuit fuse: 2A fast-blow (optional but recommended)
+- Busbar / power distribution block
+- Wiring harness and cable routing
+- **See [POWER_SYSTEM.md](POWER_SYSTEM.md) for full electrical specifications**
 
 ## Software stack
 - Klipper/Mainsail on Raspberry Pi
