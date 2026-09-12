@@ -22,8 +22,10 @@ This folder contains the deployment files needed to run GreenThumb on a Raspberr
 3. Clone the repo into `/opt/greenthumb`:
 
    ```bash
-   sudo git clone https://github.com/<your-user>/<your-repo>.git /opt/greenthumb
+   sudo git clone https://github.com/nmblood91/GreenThumb.git /opt/greenthumb
    ```
+
+   **Why `/opt`?** This is the Linux standard for third-party applications and system services. It ensures the app persists across reboots/updates, stays isolated from user files, and works properly with systemd services running at startup.
 
 4. Run the install script (installs Klipper, Python backend, React frontend, Nginx):
 
