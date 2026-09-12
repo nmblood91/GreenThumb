@@ -46,7 +46,7 @@ fi
 
 cd /opt || exit 1
 if [ ! -d "/opt/greenthumb" ]; then
-  sudo git clone https://github.com/<your-user>/<your-repo>.git /opt/greenthumb
+  sudo git clone --depth 1 https://github.com/nmblood91/GreenThumb.git /opt/greenthumb
 fi
 
 cd /opt/greenthumb

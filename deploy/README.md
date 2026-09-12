@@ -30,7 +30,7 @@ For a clean installation with the latest OS, start here:
    ```bash
    sudo apt update
    sudo apt install -y git
-   sudo git clone https://github.com/nmblood91/GreenThumb.git /opt/greenthumb
+   sudo git clone --depth 1 https://github.com/nmblood91/GreenThumb.git /opt/greenthumb
    ```
 
 5. **Run the installation script** (this installs everything):
