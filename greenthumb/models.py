@@ -6,7 +6,7 @@ from typing import Literal
 
 
 @dataclass
-class PlantSpec:
+class ZoneSpec:
     name: str
     zone_id: str
     sensor_address: int

@@ -24,7 +24,7 @@ The system is a modular smart planter based on a modified IKEA VITTSJÖ frame wi
 This project lays down the initial application stack:
 
 - `greenthumb/config.py` – configuration and environment-driven runtime settings
-- `greenthumb/models.py` – plant, sensor, and status dataclasses
+- `greenthumb/models.py` – zone, sensor, and status dataclasses
 - `greenthumb/hardware/` – hardware adapters for Klipper, sensors, LEDs, and pump
 - `greenthumb/services/automation.py` – orchestration layer for automated watering and lighting
 - `greenthumb/main.py` – FastAPI service exposing a basic API

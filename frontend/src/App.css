@@ -246,6 +246,9 @@
 }
 
 .status-bar {
+  position: sticky;
+  top: 12px;
+  z-index: 10;
   background: rgba(18, 28, 22, 0.9);
   border: 1px solid #2a4737;
   border-radius: 10px;
@@ -307,7 +310,7 @@ button.primary:hover {
   margin-top: 28px;
 }
 
-.plant-actions-grid {
+.zone-actions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
@@ -321,11 +324,37 @@ button.primary:hover {
   margin-top: 16px;
 }
 
-.plant-card {
+.zone-card {
   background: rgba(14, 24, 18, 0.95);
   border: 1px solid #2a4737;
   border-radius: 12px;
   padding: 16px;
+}
+
+.zone-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: #ffffff;
+  text-align: left;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.zone-header:hover {
+  background: transparent;
+  transform: none;
+}
+
+.zone-chevron {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #d9efe0;
 }
 
 .field-grid {
@@ -427,7 +456,7 @@ option {
   color: #dfeee3;
 }
 
-.plant-actions-row {
+.zone-actions-row {
   margin-top: 16px;
 
   button {

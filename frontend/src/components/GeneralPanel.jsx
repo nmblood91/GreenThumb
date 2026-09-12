@@ -25,7 +25,7 @@ const parseHexColor = (hex) => {
   }
 }
 
-export function OverviewPanel({ overview, plants, cameraStatus }) {
+export function GeneralPanel({ overview, zones, cameraStatus }) {
   const [settings, setSettings] = useState({
     ledMode: 'schedule',
     brightness: 75,
@@ -105,23 +105,25 @@ export function OverviewPanel({ overview, plants, cameraStatus }) {
           </label>
         </div>
 
-        <div className="field-row">
-          <label>
-            Brightness
-            <div className="slider-row">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={settings.brightness}
-                onChange={(event) =>
-                  setSettings((current) => ({ ...current, brightness: Number(event.target.value) }))
-                }
-              />
-              <span>{settings.brightness}%</span>
-            </div>
-          </label>
-        </div>
+        {settings.ledMode !== 'off' && (
+          <div className="field-row">
+            <label>
+              Brightness
+              <div className="slider-row">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={settings.brightness}
+                  onChange={(event) =>
+                    setSettings((current) => ({ ...current, brightness: Number(event.target.value) }))
+                  }
+                />
+                <span>{settings.brightness}%</span>
+              </div>
+            </label>
+          </div>
+        )}
 
         {settings.ledMode === 'on' && (
           <div className="field-row">

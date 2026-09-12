@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { TopBar } from './components/TopBar'
 import { TabBar } from './components/TabBar'
 import { GantryPanel } from './components/GantryPanel'
-import { OverviewPanel } from './components/OverviewPanel'
-import { PlantsPanel } from './components/PlantsPanel'
+import { GeneralPanel } from './components/GeneralPanel'
+import { ZonesPanel } from './components/PlantsPanel'
 import { LogsPanel } from './components/LogsPanel'
 import './App.css'
 
@@ -12,7 +12,7 @@ const API_BASE = 'http://localhost:8000/api/v1'
 function App() {
   const [activeTab, setActiveTab] = useState('gantry')
   const [overview, setOverview] = useState(null)
-  const [plants, setPlants] = useState([])
+  const [zones, setZones] = useState([])
   const [logs, setLogs] = useState([])
   const [status, setStatus] = useState('Loading GreenThumb...')
   const [loading, setLoading] = useState(true)
@@ -34,16 +34,20 @@ function App() {
   const loadDashboard = async () => {
     try {
       setLoading(true)
-      const [overviewData, plantsData, logsData] = await Promise.all([
+      const [overviewData, zonesData, logsData] = await Promise.all([
         fetchJson('/overview'),
-        fetchJson('/plants'),
+        fetchJson('/zones'),
         fetchJson('/logs?lines=20'),
       ])
 
       setOverview(overviewData)
-      setPlants(plantsData)
+      setZones(zonesData)
       setLogs(logsData)
-      setStatus('System online and ready.')
+      if (logsData?.length) {
+        setStatus(logsData[0])
+      } else {
+        setStatus('System online and ready.')
+      }
     } catch (error) {
       setStatus(`Connection failed: ${error.message}`)
     } finally {
@@ -68,12 +72,12 @@ function App() {
       movement.position_mm ??
       movement.position ??
       overview?.position_mm ??
-      plants[0]?.position_mm ??
+      zones[0]?.position_mm ??
       0
 
     const numericValue = Number(rawValue)
     return Number.isFinite(numericValue) ? numericValue : 0
-  }, [overview, plants])
+  }, [overview, zones])
 
   const homeGantry = async () => {
     try {
@@ -100,45 +104,45 @@ function App() {
     }
   }
 
-  const moveToPlant = async (zoneId) => {
+  const moveToZone = async (zoneId) => {
     try {
-      const plant = plants.find((item) => item.zone_id === zoneId)
-      setStatus(`Moving gantry to ${plant?.name || zoneId}...`)
+      const zone = zones.find((item) => item.zone_id === zoneId)
+      setStatus(`Moving gantry to ${zone?.name || zoneId}...`)
       const result = await fetchJson(`/zones/${zoneId}/move`, { method: 'POST' })
-      setStatus(`Moved to ${plant?.name || zoneId}: ${JSON.stringify(result)}`)
+      setStatus(`Moved to ${zone?.name || zoneId}: ${JSON.stringify(result)}`)
     } catch (error) {
-      setStatus(`Move to plant failed: ${error.message}`)
+      setStatus(`Move to zone failed: ${error.message}`)
     }
   }
 
-  const savePlant = async (plant) => {
+  const saveZone = async (zone) => {
     try {
-      setStatus(`Saving ${plant.name}...`)
+      setStatus(`Saving ${zone.name}...`)
 
-      await fetchJson(`/plants/${plant.zone_id}/name`, {
+      await fetchJson(`/zones/${zone.zone_id}/plant`, {
         method: 'POST',
-        body: JSON.stringify({ name: plant.name }),
+        body: JSON.stringify({ name: zone.name }),
       })
 
-      await fetchJson(`/plants/${plant.zone_id}/lighting`, {
+      await fetchJson(`/zones/${zone.zone_id}/lighting`, {
         method: 'POST',
         body: JSON.stringify({
-          start_time: plant.light_start_time,
-          stop_time: plant.light_stop_time,
+          start_time: zone.light_start_time,
+          stop_time: zone.light_stop_time,
         }),
       })
 
-      await fetchJson(`/plants/${plant.zone_id}/moisture-target`, {
+      await fetchJson(`/zones/${zone.zone_id}/moisture`, {
         method: 'POST',
-        body: JSON.stringify({ moisture_target: Number(plant.moisture_target) }),
+        body: JSON.stringify({ moisture_target: Number(zone.moisture_target) }),
       })
 
-      await fetchJson(`/zones/${plant.zone_id}/position`, {
+      await fetchJson(`/zones/${zone.zone_id}/position`, {
         method: 'POST',
-        body: JSON.stringify({ position_mm: Number(plant.position_mm) }),
+        body: JSON.stringify({ position_mm: Number(zone.position_mm) }),
       })
 
-      setStatus(`Saved ${plant.name}.`)
+      setStatus(`Saved ${zone.name}.`)
       await loadDashboard()
     } catch (error) {
       setStatus(`Save failed: ${error.message}`)
@@ -153,19 +157,19 @@ function App() {
 
       {activeTab === 'gantry' && (
         <GantryPanel
-          plants={plants}
+          zones={zones}
           gantryPosition={gantryPosition}
           onHome={homeGantry}
           onMove={moveGantry}
-          onMoveToPlant={moveToPlant}
+          onMoveToZone={moveToZone}
         />
       )}
 
       {activeTab === 'general' && (
-        <OverviewPanel overview={overview} plants={plants} cameraStatus={cameraStatus} />
+        <GeneralPanel overview={overview} zones={zones} cameraStatus={cameraStatus} />
       )}
 
-      {activeTab === 'plants' && <PlantsPanel plants={plants} onSave={savePlant} />}
+      {activeTab === 'plants' && <ZonesPanel zones={zones} onSave={saveZone} />}
       {activeTab === 'logs' && <LogsPanel logs={logs} />}
     </div>
   )

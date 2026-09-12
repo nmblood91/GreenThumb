@@ -1,0 +1,59 @@
+[include mainsail.cfg]
+
+[mcu]
+serial: /dev/serial/by-id/usb-Klipper_xxx
+restart_method: command
+
+[printer]
+kinematics: cartesian
+max_velocity: 400
+max_accel: 4000
+max_z_velocity: 15
+max_z_accel: 100
+
+[stepper_x]
+step_pin: PB13
+dir_pin: PB12
+enable_pin: !PB14
+microsteps: 16
+rotation_distance: 40
+endstop_pin: ^!PC0
+position_min: 0
+position_max: 1000
+position_endstop: 0
+homing_speed: 50
+homing_retract_dist: 2
+
+[tmc2209 stepper_x]
+uart_pin: PC11
+tx_pin: PC10
+uart_address: 0
+run_current: 0.7
+stealthchop_threshold: 999999
+
+[virtual_sdcard]
+path: ~/printer_data/gcodes
+
+[pause_resume]
+
+[display_status]
+[respond]
+
+[gcode_macro HOME_GANTRY]
+description: Home the gantry on the X axis
+gcode:
+    G28 X
+
+[gcode_macro MOVE_LEFT_10]
+description: Move gantry left by 10 mm
+gcode:
+    G91
+    G1 X-10 F6000
+    G90
+
+[gcode_macro MOVE_RIGHT_10]
+description: Move gantry right by 10 mm
+gcode:
+    G91
+    G1 X10 F6000
+    G90

@@ -1,4 +1,4 @@
-export function GantryPanel({ plants, gantryPosition, onHome, onMove, onMoveToPlant }) {
+export function GantryPanel({ zones, gantryPosition, onHome, onMove, onMoveToZone }) {
   return (
     <section className="panel-section">
       <h2>View / Control Gantry</h2>
@@ -24,11 +24,11 @@ export function GantryPanel({ plants, gantryPosition, onHome, onMove, onMoveToPl
       </div>
 
       <div className="subsection">
-        <h3>Move to Plant</h3>
-        <div className="plant-actions-grid">
-          {plants.map((plant) => (
-            <button key={plant.zone_id} onClick={() => onMoveToPlant(plant.zone_id)}>
-              {plant.name}
+        <h3>Move to Zone</h3>
+        <div className="zone-actions-grid">
+          {zones.map((zone) => (
+            <button key={zone.zone_id} onClick={() => onMoveToZone(zone.zone_id)}>
+              {zone.name}
             </button>
           ))}
         </div>

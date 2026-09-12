@@ -1,0 +1,15 @@
+[Unit]
+Description=GreenThumb API Service
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/greenthumb
+Environment=PATH=/opt/greenthumb/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/opt/greenthumb/.venv/bin/python -m uvicorn greenthumb.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

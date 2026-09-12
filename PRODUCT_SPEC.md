@@ -4,6 +4,8 @@
 
 GreenThumb is a smart indoor planter system designed to automate and optimize plant care for home, office, and premium interior environments. The system combines hardware and software to provide automatic watering, lighting control, environmental visibility, and plant management.
 
+**Architectural note:** The software organizes growing spaces into "zones" (physical locations on the frame), each containing a plant (the botanical organism). The zone is the primary organizational unit for configuration, control, and monitoring; the plant name is a property of each zone.
+
 ## Target product
 
 A 4-zone smart indoor planter system using:
