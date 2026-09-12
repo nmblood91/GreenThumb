@@ -4,7 +4,6 @@ set -euo pipefail
 echo "Installing GreenThumb on the Pi..."
 
 sudo apt update
-sudo apt upgrade -y
 sudo apt install -y git python3-venv python3-pip nginx curl
 
 # Install core dependencies
@@ -63,12 +62,11 @@ npm run build
 echo "Installing Klipper host software..."
 if [ ! -d /home/pi/klipper ]; then
   sudo -u pi bash -c 'cd ~ && git clone --depth 1 https://github.com/Klipper3d/klipper.git'
-
-  # Install Klipper Python dependencies
   sudo -u pi bash -c 'cd ~/klipper && pip install --break-system-packages greenlet jinja2 markupsafe pyserial'
+fi
 
-  # Create Klipper systemd service
-  cat > /tmp/klipper.service << 'EOF'
+# Always create/update the systemd service (even if Klipper was already cloned)
+cat > /tmp/klipper.service << 'EOF'
 [Unit]
 Description=Klipper 3D Printer Firmware
 Documentation=https://www.klipper3d.org/
@@ -87,11 +85,8 @@ Restart=always
 RestartSec=10
 EOF
 
-  sudo cp /tmp/klipper.service /etc/systemd/system/klipper.service
-  sudo systemctl daemon-reload
-else
-  echo "Klipper already installed, skipping..."
-fi
+sudo cp /tmp/klipper.service /etc/systemd/system/klipper.service
+sudo systemctl daemon-reload
 
 # Start services
 echo "Starting services..."
