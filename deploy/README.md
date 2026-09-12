@@ -11,23 +11,41 @@ This folder contains the deployment files needed to run GreenThumb on a Raspberr
 
 ## Quick installation on the Pi
 
-1. Connect to the Pi.
-2. Clone the repo into `/opt/greenthumb`.
-3. Run:
+1. Connect to the Pi via SSH.
+2. Clone the repo into `/opt/greenthumb`:
+
+   ```bash
+   sudo git clone https://github.com/<your-user>/<your-repo>.git /opt/greenthumb
+   ```
+
+3. Run the install script (installs Klipper, Python backend, React frontend, Nginx):
 
    ```bash
    sudo bash /opt/greenthumb/deploy/pi/install-green-thumb.sh
    ```
 
-4. Verify the API:
+4. **Configure Klipper**:
+   - If your SKR board was **connected during installation**, the serial ID was auto-detected ✓
+   - If the board **wasn't connected yet**, connect it now and update `~/printer_data/config/printer.cfg`:
+     ```bash
+     ls -la /dev/serial/by-id/  # Find your board's ID
+     # Edit the file and update the [mcu] serial: line
+     nano ~/printer_data/config/printer.cfg
+     ```
+   - Restart Klipper:
+     ```bash
+     sudo systemctl restart klipper
+     ```
+
+5. Verify the API:
 
    ```bash
    curl http://localhost:8000/
    ```
 
-5. Verify the front end:
+6. Verify the front end:
 
-   - open `http://<pi-ip>` in a browser
+   - Open `http://<pi-ip>` in a browser
 
 ## Service behavior
 
