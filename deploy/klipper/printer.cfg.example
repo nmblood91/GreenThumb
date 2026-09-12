@@ -39,6 +39,15 @@ path: ~/printer_data/gcodes
 [display_status]
 [respond]
 
+[heater_generic pump]
+heater_pin: PA8
+max_power: 1.0
+control: on_off
+min_temp: 0
+max_temp: 100
+sensor_type: NTC 100K beta 3950
+sensor_pin: PC5
+
 [gcode_macro HOME_GANTRY]
 description: Home the gantry on the X axis
 gcode:

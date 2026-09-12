@@ -85,6 +85,36 @@ For a clean installation with the latest OS, start here:
 - Nginx serves the built frontend from `/opt/greenthumb/frontend/dist`.
 - `/api` requests are proxied to the Python API.
 
+## Wiring the Pump to SKR Board
+
+The peristaltic pump is controlled via the SKR's **HE0 (heater) connector** on the bottom edge of the board. This is a switched 12V output that turns the pump on/off.
+
+**SKR Mini E3 V2.0 HE0 connector pinout (3 pins):**
+```
+[12/24V] [PC8] [GND]
+```
+
+**Wiring from power busbar to SKR:**
+```
+12V Busbar (+)
+    ├→ [5A Main Fuse] → SKR Main Power Input
+    └→ [2A Pump Fuse] → HE0 "12/24V" pin
+
+Pump (+) ───────→ 12V Busbar (+)
+Pump (-) ───────→ HE0 "PC8" pin
+HE0 "GND" ──────→ 12V Busbar GND
+```
+
+**Connection summary:**
+- Pump positive → 12V Busbar (fused)
+- Pump negative → HE0 PC8 pin
+- HE0 12/24V pin → 12V Busbar (fused)
+- HE0 GND pin → Busbar GND
+
+The SKR board's internal mosfet on PC8 switches the pump circuit on/off. Control via Klipper's `SET_HEATER_TEMPERATURE HEATER=pump TARGET=50` (on) / `TARGET=0` (off) from the FastAPI backend.
+
+See [POWER_SYSTEM.md](../POWER_SYSTEM.md) for complete busbar and fusing specifications.
+
 ## Troubleshooting
 
 If the installation script disconnects or fails, use these commands to diagnose:
