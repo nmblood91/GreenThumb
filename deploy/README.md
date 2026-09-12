@@ -9,7 +9,7 @@ This folder contains the deployment files needed to run GreenThumb on a Raspberr
 - `klipper/printer.cfg.example` — bare-bones single-axis gantry Klipper template
 - `pi/install-green-thumb.sh` — install script for the Pi
 
-## Fresh Pi Setup (Recommended)
+## Fresh Pi Setup
 
 For a clean installation with the latest OS, start here:
 

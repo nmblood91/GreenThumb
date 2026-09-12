@@ -7,40 +7,9 @@ sudo apt update
 sudo apt upgrade -y
 sudo apt install -y git python3-venv python3-pip nginx curl
 
-# Install Klipper dependencies
-echo "Installing Klipper and dependencies..."
+# Install core dependencies
+echo "Installing build dependencies..."
 sudo apt install -y python3-dev libffi-dev build-essential libncurses-dev libusb-dev avrdude gcc-arm-none-eabi binutils-arm-none-eabi
-
-# Install Klipper host software (must run as pi user, not root)
-if [ ! -d /home/pi/klipper ]; then
-  echo "Installing Klipper host software..."
-  sudo -u pi bash -c 'cd ~ && git clone https://github.com/Klipper3d/klipper.git'
-
-  # Create Klipper systemd service
-  cat > /tmp/klipper.service << 'EOF'
-[Unit]
-Description=Klipper 3D Printer Firmware
-Documentation=https://www.klipper3d.org/
-After=network-online.target
-Wants=network-online.target
-
-[Install]
-WantedBy=multi-user.target
-
-[Service]
-Type=simple
-User=pi
-RemainAfterExit=yes
-ExecStart=/usr/bin/python3 /home/pi/klipper/klippy/klippy.py /home/pi/printer_data/config/printer.cfg -l /home/pi/klipper_logs/klippy.log -a /run/klipper_uds
-Restart=always
-RestartSec=10
-EOF
-
-  sudo cp /tmp/klipper.service /etc/systemd/system/klipper.service
-  sudo systemctl daemon-reload
-else
-  echo "Klipper already installed, skipping..."
-fi
 
 # Create printer_data directories
 mkdir -p ~/printer_data/config ~/printer_data/gcodes
@@ -90,8 +59,39 @@ cd /opt/greenthumb/frontend
 npm install
 npm run build
 
-# Start Klipper service
-echo "Starting Klipper service..."
+# Install Klipper host software (last, to avoid blocking on large clone)
+echo "Installing Klipper host software..."
+if [ ! -d /home/pi/klipper ]; then
+  sudo -u pi bash -c 'cd ~ && git clone --depth 1 https://github.com/Klipper3d/klipper.git'
+
+  # Create Klipper systemd service
+  cat > /tmp/klipper.service << 'EOF'
+[Unit]
+Description=Klipper 3D Printer Firmware
+Documentation=https://www.klipper3d.org/
+After=network-online.target
+Wants=network-online.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=simple
+User=pi
+RemainAfterExit=yes
+ExecStart=/usr/bin/python3 /home/pi/klipper/klippy/klippy.py /home/pi/printer_data/config/printer.cfg -l /home/pi/klipper_logs/klippy.log -a /run/klipper_uds
+Restart=always
+RestartSec=10
+EOF
+
+  sudo cp /tmp/klipper.service /etc/systemd/system/klipper.service
+  sudo systemctl daemon-reload
+else
+  echo "Klipper already installed, skipping..."
+fi
+
+# Start services
+echo "Starting services..."
 sudo systemctl enable --now klipper
 
 sudo cp /opt/greenthumb/deploy/systemd/greenthumb-api.service /etc/systemd/system/greenthumb-api.service
