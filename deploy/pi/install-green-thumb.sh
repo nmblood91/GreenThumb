@@ -13,7 +13,11 @@ sudo apt install -y python3-dev libffi-dev build-essential libncurses-dev libusb
 
 # Install Klipper host software (must run as pi user, not root)
 if [ ! -d /home/pi/klipper ]; then
-  sudo -u pi bash -c 'cd ~ && git clone https://github.com/Klipper3d/klipper.git && cd klipper/scripts && bash ./install-octopi.sh'
+  echo "Installing Klipper host software..."
+  sudo -u pi bash -c 'cd ~ && git clone https://github.com/Klipper3d/klipper.git'
+  # Create Klipper systemd service
+  sudo cp /home/pi/klipper/scripts/klipper.service /etc/systemd/system/klipper.service
+  sudo sed -i 's|ExecStart=.*|ExecStart=/usr/bin/python3 /home/pi/klipper/klippy/klippy.py|' /etc/systemd/system/klipper.service
 else
   echo "Klipper already installed, skipping..."
 fi
