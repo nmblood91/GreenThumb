@@ -56,6 +56,8 @@ if [ ! -d "/opt/greenthumb" ]; then
 fi
 
 cd /opt/greenthumb
+sudo mkdir -p /opt/greenthumb/logs
+sudo chown pi:pi /opt/greenthumb/logs
 python3 -m venv .venv
 . .venv/bin/activate
 pip install --upgrade pip
