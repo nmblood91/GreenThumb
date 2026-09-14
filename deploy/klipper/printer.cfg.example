@@ -1,5 +1,3 @@
-[include mainsail.cfg]
-
 [mcu]
 serial: /dev/serial/by-id/usb-Klipper_xxx
 restart_method: command
@@ -45,7 +43,7 @@ max_power: 1.0
 control: on_off
 min_temp: 0
 max_temp: 100
-sensor_type: NTC 100K beta 3950
+sensor_type: EPCOS 100K B57560G104F
 sensor_pin: PC5
 
 [gcode_macro HOME_GANTRY]
