@@ -18,20 +18,29 @@ if [ ! -f /home/pi/printer_data/config/printer.cfg ]; then
   sudo -u pi cp /opt/greenthumb/deploy/klipper/printer.cfg.example /home/pi/printer_data/config/printer.cfg
 fi
 
-# Always try to auto-detect and update Klipper serial device
-echo "Detecting Klipper device..."
-KLIPPER_DEVICE=$(ls /dev/serial/by-id/ 2>/dev/null | grep -i klipper | head -1)
+# Auto-detect Klipper device with retry (up to 30 seconds)
+echo "Detecting Klipper device (waiting up to 30 seconds)..."
+KLIPPER_DEVICE=""
+for i in {1..30}; do
+  KLIPPER_DEVICE=$(ls /dev/serial/by-id/ 2>/dev/null | grep -i klipper | head -1)
+  if [ -n "$KLIPPER_DEVICE" ]; then
+    echo "✓ Found Klipper device: $KLIPPER_DEVICE"
+    sudo -u pi sed -i "s|serial: /dev/serial/by-id/usb-Klipper_.*|serial: /dev/serial/by-id/$KLIPPER_DEVICE|" /home/pi/printer_data/config/printer.cfg
+    echo "✓ Updated printer.cfg with serial ID"
+    break
+  fi
+  if [ $i -lt 30 ]; then
+    echo "  Waiting... ($i/30)"
+    sleep 1
+  fi
+done
 
-if [ -n "$KLIPPER_DEVICE" ]; then
-  echo "✓ Found Klipper device: $KLIPPER_DEVICE"
-  sudo -u pi sed -i "s|serial: /dev/serial/by-id/usb-Klipper_.*|serial: /dev/serial/by-id/$KLIPPER_DEVICE|" /home/pi/printer_data/config/printer.cfg
-  echo "✓ Updated printer.cfg with serial ID"
-else
+if [ -z "$KLIPPER_DEVICE" ]; then
   echo ""
-  echo "⚠️  No Klipper device detected yet"
-  echo "After connecting your SKR board via USB, run:"
+  echo "⚠️  No Klipper device detected after 30 seconds"
+  echo "Make sure your SKR board is connected and powered on."
+  echo "After connecting it, run:"
   echo "  sudo bash /opt/greenthumb/deploy/pi/install-green-thumb.sh"
-  echo "to auto-detect and configure it."
   echo ""
 fi
 
@@ -86,9 +95,22 @@ EOF
 sudo cp /tmp/klipper.service /etc/systemd/system/klipper.service
 sudo systemctl daemon-reload
 
-# Start services
-echo "Starting services..."
+# Start Klipper and verify it connects
+echo "Starting Klipper..."
 sudo systemctl enable --now klipper
+sleep 3
+
+# Check if Klipper connected to MCU
+echo "Verifying Klipper connection..."
+if sudo -u pi grep -q "MCU 'mcu' is ready" /home/pi/klipper_logs/klippy.log 2>/dev/null; then
+  echo "✓ Klipper connected to MCU successfully"
+elif sudo systemctl is-active --quiet klipper; then
+  echo "✓ Klipper service is running"
+else
+  echo "⚠️  Klipper service failed to start"
+  echo "Check logs with: tail -50 ~/klipper_logs/klippy.log"
+  echo "Or systemd status: sudo systemctl status klipper"
+fi
 
 sudo cp /opt/greenthumb/deploy/systemd/greenthumb-api.service /etc/systemd/system/greenthumb-api.service
 sudo systemctl daemon-reload
