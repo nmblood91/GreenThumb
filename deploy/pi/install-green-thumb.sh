@@ -10,31 +10,29 @@ sudo apt install -y git python3-venv python3-pip nginx curl
 echo "Installing build dependencies..."
 sudo apt install -y python3-dev libffi-dev build-essential libncurses-dev libusb-dev avrdude gcc-arm-none-eabi binutils-arm-none-eabi
 
-# Create printer_data directories
-mkdir -p ~/printer_data/config ~/printer_data/gcodes
+# Create printer_data and log directories
+mkdir -p ~/printer_data/config ~/printer_data/gcodes ~/klipper_logs
 
 # Copy printer.cfg from template if it doesn't exist
 if [ ! -f ~/printer_data/config/printer.cfg ]; then
   cp /opt/greenthumb/deploy/klipper/printer.cfg.example ~/printer_data/config/printer.cfg
+fi
 
-  # Auto-detect Klipper serial device
-  KLIPPER_DEVICE=$(ls /dev/serial/by-id/ 2>/dev/null | grep -i klipper | head -1)
+# Always try to auto-detect and update Klipper serial device
+echo "Detecting Klipper device..."
+KLIPPER_DEVICE=$(ls /dev/serial/by-id/ 2>/dev/null | grep -i klipper | head -1)
 
-  if [ -n "$KLIPPER_DEVICE" ]; then
-    echo "✓ Found Klipper device: $KLIPPER_DEVICE"
-    sed -i "s|serial: /dev/serial/by-id/usb-Klipper_xxx|serial: /dev/serial/by-id/$KLIPPER_DEVICE|" ~/printer_data/config/printer.cfg
-    echo "✓ Updated printer.cfg with serial ID"
-  else
-    echo ""
-    echo "⚠️  No Klipper device detected yet"
-    echo "You must connect your SKR board and update the [mcu] serial line:"
-    echo "  1. Connect your SKR board via USB"
-    echo "  2. Run: ls -la /dev/serial/by-id/"
-    echo "  3. Find your Klipper device and copy its full ID"
-    echo "  4. Edit ~/printer_data/config/printer.cfg and update the serial line"
-    echo "  5. Restart Klipper: sudo systemctl restart klipper"
-    echo ""
-  fi
+if [ -n "$KLIPPER_DEVICE" ]; then
+  echo "✓ Found Klipper device: $KLIPPER_DEVICE"
+  sed -i "s|serial: /dev/serial/by-id/usb-Klipper_.*|serial: /dev/serial/by-id/$KLIPPER_DEVICE|" ~/printer_data/config/printer.cfg
+  echo "✓ Updated printer.cfg with serial ID"
+else
+  echo ""
+  echo "⚠️  No Klipper device detected yet"
+  echo "After connecting your SKR board via USB, run:"
+  echo "  sudo bash /opt/greenthumb/deploy/pi/install-green-thumb.sh"
+  echo "to auto-detect and configure it."
+  echo ""
 fi
 
 if ! command -v node >/dev/null 2>&1; then
