@@ -29,6 +29,23 @@ uart_address: 0
 run_current: 0.7
 stealthchop_threshold: 999999
 
+[stepper_y]
+step_pin: PB10
+dir_pin: PB2
+enable_pin: !PB11
+microsteps: 16
+rotation_distance: 40
+position_min: 0
+position_max: 200
+position_endstop: 0
+
+[tmc2209 stepper_y]
+uart_pin: PC11
+tx_pin: PC10
+uart_address: 1
+run_current: 0.7
+stealthchop_threshold: 999999
+
 [virtual_sdcard]
 path: ~/printer_data/gcodes
 
