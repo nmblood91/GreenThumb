@@ -69,8 +69,9 @@ npm run build
 echo "Installing Klipper host software..."
 if [ ! -d /home/pi/klipper ]; then
   sudo -u pi bash -c 'cd ~ && git clone --depth 1 https://github.com/Klipper3d/klipper.git'
-  sudo -u pi bash -c 'cd ~/klipper && pip install --break-system-packages greenlet jinja2 markupsafe pyserial'
 fi
+# Always install/update Klipper dependencies
+sudo -u pi bash -c 'pip install --break-system-packages cffi greenlet jinja2 markupsafe pyserial'
 
 # Always create/update the systemd service (even if Klipper was already cloned)
 cat > /tmp/klipper.service << 'EOF'
@@ -87,7 +88,8 @@ WantedBy=multi-user.target
 Type=simple
 User=pi
 RemainAfterExit=yes
-ExecStart=/usr/bin/python3 /home/pi/klipper/klippy/klippy.py /home/pi/printer_data/config/printer.cfg -l /home/pi/klipper_logs/klippy.log -a /run/klipper_uds
+ExecStartPre=/bin/mkdir -p /run/klipper
+ExecStart=/usr/bin/python3 /home/pi/klipper/klippy/klippy.py /home/pi/printer_data/config/printer.cfg -l /home/pi/klipper_logs/klippy.log -a /run/klipper/uds
 Restart=always
 RestartSec=10
 EOF
