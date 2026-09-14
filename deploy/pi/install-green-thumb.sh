@@ -13,11 +13,6 @@ sudo apt install -y python3-dev libffi-dev build-essential libncurses-dev libusb
 # Create printer_data and log directories
 sudo -u pi mkdir -p /home/pi/printer_data/config /home/pi/printer_data/gcodes /home/pi/klipper_logs
 
-# Copy printer.cfg from template if it doesn't exist
-if [ ! -f /home/pi/printer_data/config/printer.cfg ]; then
-  sudo -u pi cp /opt/greenthumb/deploy/klipper/printer.cfg.example /home/pi/printer_data/config/printer.cfg
-fi
-
 # Auto-detect Klipper device with retry (up to 30 seconds)
 echo "Detecting Klipper device (waiting up to 30 seconds)..."
 KLIPPER_DEVICE=""
@@ -25,8 +20,6 @@ for i in {1..30}; do
   KLIPPER_DEVICE=$(ls /dev/serial/by-id/ 2>/dev/null | grep -i klipper | head -1)
   if [ -n "$KLIPPER_DEVICE" ]; then
     echo "✓ Found Klipper device: $KLIPPER_DEVICE"
-    sudo -u pi sed -i "s|serial: /dev/serial/by-id/usb-Klipper_.*|serial: /dev/serial/by-id/$KLIPPER_DEVICE|" /home/pi/printer_data/config/printer.cfg
-    echo "✓ Updated printer.cfg with serial ID"
     break
   fi
   if [ $i -lt 30 ]; then
@@ -42,6 +35,17 @@ if [ -z "$KLIPPER_DEVICE" ]; then
   echo "After connecting it, run:"
   echo "  sudo bash /opt/greenthumb/deploy/pi/install-green-thumb.sh"
   echo ""
+fi
+
+# Copy printer.cfg from template if it doesn't exist
+if [ ! -f /home/pi/printer_data/config/printer.cfg ]; then
+  sudo -u pi cp /opt/greenthumb/deploy/klipper/printer.cfg.example /home/pi/printer_data/config/printer.cfg
+fi
+
+# Update serial ID in printer.cfg (always, in case it changed)
+if [ -n "$KLIPPER_DEVICE" ]; then
+  sudo -u pi sed -i "s|serial: /dev/serial/by-id/usb-Klipper_.*|serial: /dev/serial/by-id/$KLIPPER_DEVICE|" /home/pi/printer_data/config/printer.cfg
+  echo "✓ Updated printer.cfg with serial ID"
 fi
 
 if ! command -v node >/dev/null 2>&1; then
