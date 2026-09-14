@@ -75,7 +75,6 @@ path: ~/printer_data/gcodes
 
 [output_pin pump]
 pin: PA8
-maximum_mcu_duration: 0
 
 [gcode_macro HOME_GANTRY]
 description: Home the gantry on the X axis
