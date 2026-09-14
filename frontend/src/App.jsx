@@ -7,7 +7,7 @@ import { ZonesPanel } from './components/PlantsPanel'
 import { LogsPanel } from './components/LogsPanel'
 import './App.css'
 
-const API_BASE = 'http://localhost:8000/api/v1'
+const API_BASE = '/api/v1'
 
 function App() {
   const [activeTab, setActiveTab] = useState('gantry')
