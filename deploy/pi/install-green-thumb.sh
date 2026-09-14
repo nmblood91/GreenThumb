@@ -11,11 +11,11 @@ echo "Installing build dependencies..."
 sudo apt install -y python3-dev libffi-dev build-essential libncurses-dev libusb-dev avrdude gcc-arm-none-eabi binutils-arm-none-eabi
 
 # Create printer_data and log directories
-mkdir -p ~/printer_data/config ~/printer_data/gcodes ~/klipper_logs
+sudo -u pi mkdir -p /home/pi/printer_data/config /home/pi/printer_data/gcodes /home/pi/klipper_logs
 
 # Copy printer.cfg from template if it doesn't exist
-if [ ! -f ~/printer_data/config/printer.cfg ]; then
-  cp /opt/greenthumb/deploy/klipper/printer.cfg.example ~/printer_data/config/printer.cfg
+if [ ! -f /home/pi/printer_data/config/printer.cfg ]; then
+  sudo -u pi cp /opt/greenthumb/deploy/klipper/printer.cfg.example /home/pi/printer_data/config/printer.cfg
 fi
 
 # Always try to auto-detect and update Klipper serial device
@@ -24,7 +24,7 @@ KLIPPER_DEVICE=$(ls /dev/serial/by-id/ 2>/dev/null | grep -i klipper | head -1)
 
 if [ -n "$KLIPPER_DEVICE" ]; then
   echo "✓ Found Klipper device: $KLIPPER_DEVICE"
-  sed -i "s|serial: /dev/serial/by-id/usb-Klipper_.*|serial: /dev/serial/by-id/$KLIPPER_DEVICE|" ~/printer_data/config/printer.cfg
+  sudo -u pi sed -i "s|serial: /dev/serial/by-id/usb-Klipper_.*|serial: /dev/serial/by-id/$KLIPPER_DEVICE|" /home/pi/printer_data/config/printer.cfg
   echo "✓ Updated printer.cfg with serial ID"
 else
   echo ""
