@@ -39,6 +39,7 @@ class KlipperClient:
         return 0.0
 
     def _send_gcode(self, gcode: str) -> dict[str, Any]:
+        logger.info(f"Sending gcode: {repr(gcode)}")
         return self._send_command("gcode/script", {"script": gcode})
 
     def _send_command(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -47,7 +48,9 @@ class KlipperClient:
             sock.settimeout(2.0)
             sock.connect(self.socket_path)
             request = {"jsonrpc": "2.0", "method": method, "params": params or {}, "id": 1}
-            sock.sendall((json.dumps(request) + "\x03").encode())
+            request_json = json.dumps(request) + "\x03"
+            logger.info(f"Request: {request_json}")
+            sock.sendall(request_json.encode())
 
             # Read response: Klipper sends messages terminated with 0x03
             response_data = b""
@@ -67,7 +70,9 @@ class KlipperClient:
 
             if response_data:
                 response_str = response_data.decode().split("\x03")[0]
+                logger.info(f"Response: {response_str}")
                 return json.loads(response_str)
+            logger.info("No response data")
             return {"ok": True}
         except (socket.error, json.JSONDecodeError, OSError) as exc:
             logger.warning("Klipper request failed: %s", exc)
