@@ -37,15 +37,16 @@ if [ -z "$KLIPPER_DEVICE" ]; then
   echo ""
 fi
 
-# Copy printer.cfg from template if it doesn't exist
-if [ ! -f /home/pi/printer_data/config/printer.cfg ]; then
-  sudo -u pi cp /opt/greenthumb/deploy/klipper/printer.cfg.example /home/pi/printer_data/config/printer.cfg
-fi
-
-# Update serial ID in printer.cfg (always, in case it changed)
+# Generate printer.cfg from template with actual device ID
 if [ -n "$KLIPPER_DEVICE" ]; then
-  sudo -u pi sed -i "s|serial: /dev/serial/by-id/usb-Klipper_.*|serial: /dev/serial/by-id/$KLIPPER_DEVICE|" /home/pi/printer_data/config/printer.cfg
-  echo "✓ Updated printer.cfg with serial ID"
+  sed "s|serial: /dev/serial/by-id/usb-Klipper_xxx|serial: /dev/serial/by-id/$KLIPPER_DEVICE|" /opt/greenthumb/deploy/klipper/printer.cfg.example > /tmp/printer.cfg
+  sudo -u pi cp /tmp/printer.cfg /home/pi/printer_data/config/printer.cfg
+  echo "✓ Generated printer.cfg with device serial ID"
+else
+  # Fallback: copy template as-is if device not detected yet
+  if [ ! -f /home/pi/printer_data/config/printer.cfg ]; then
+    sudo -u pi cp /opt/greenthumb/deploy/klipper/printer.cfg.example /home/pi/printer_data/config/printer.cfg
+  fi
 fi
 
 if ! command -v node >/dev/null 2>&1; then
