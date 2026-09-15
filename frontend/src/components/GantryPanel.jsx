@@ -14,13 +14,13 @@ export function GantryPanel({ zones, gantryPosition, onHome, onMove, onMoveToZon
       </div>
 
       <div className="motion-grid two-up">
-        <button onClick={() => onMove(-10)}>Move Left -10 mm</button>
-        <button onClick={() => onMove(10)}>Move Right +10 mm</button>
+        <button onClick={() => onMove(-10)}>Move Left 10 mm</button>
+        <button onClick={() => onMove(10)}>Move Right 10 mm</button>
       </div>
 
       <div className="motion-grid two-up">
-        <button onClick={() => onMove(-50)}>Move Left -50 mm</button>
-        <button onClick={() => onMove(50)}>Move Right +50 mm</button>
+        <button onClick={() => onMove(-50)}>Move Left 50 mm</button>
+        <button onClick={() => onMove(50)}>Move Right 50 mm</button>
       </div>
 
       <div className="subsection">
