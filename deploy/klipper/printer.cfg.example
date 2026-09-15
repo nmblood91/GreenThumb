@@ -28,7 +28,7 @@ tx_pin: PC10
 uart_address: 0
 run_current: 0.7
 stealthchop_threshold: 999999
-diag_pin: ^PB14
+diag_pin: ^PC3
 driver_SGTHRS: 75
 
 [stepper_y]
