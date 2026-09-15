@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "GreenThumb"
     api_prefix: str = "/api/v1"
-    klipper_host: str = "http://127.0.0.1:7125"
+    klipper_host: str = "/run/klipper/uds"
     moisture_sensor_addresses: list[int] = [0x36, 0x37, 0x38, 0x39]
     pump_pin: int = 17
     led_count: int = 60
