@@ -1,47 +1,52 @@
 from __future__ import annotations
 
+import json
 import logging
+import socket
+from pathlib import Path
 from typing import Any
-
-import httpx
 
 logger = logging.getLogger(__name__)
 
 
 class KlipperClient:
-    """Thin wrapper around Klipper's HTTP API for motion and status calls."""
+    """Communicate with Klipper via Unix socket."""
 
-    def __init__(self, base_url: str = "http://127.0.0.1:7125") -> None:
-        self.base_url = base_url.rstrip("/")
-        self.client = httpx.Client(timeout=5.0)
+    def __init__(self, socket_path: str = "/run/klipper/uds") -> None:
+        self.socket_path = socket_path
+        self.socket = None
 
     def status(self) -> dict[str, Any]:
-        return self._request("GET", "/printer/objects/query?heater_bed&fan&toolhead&gcode_move")
-
-    def home_axis(self, axis: str) -> dict[str, Any]:
-        payload = {"script": f"G28 {axis.upper()}"}
-        return self._request("POST", "/printer/gcode/script", json=payload)
+        return self._send_command("query_objects", {"objects": {"toolhead": None, "gcode_move": None}})
 
     def home_gantry(self) -> dict[str, Any]:
-        payload = {"script": "G28 X"}
-        return self._request("POST", "/printer/gcode/script", json=payload)
-
-    def move_relative(self, x_mm: float = 0.0, y_mm: float = 0.0, z_mm: float = 0.0) -> dict[str, Any]:
-        payload = {"script": f"G91\nG1 X{x_mm} Y{y_mm} Z{z_mm} F6000\nG90"}
-        return self._request("POST", "/printer/gcode/script", json=payload)
+        return self._send_gcode("G28 X")
 
     def move_gantry_relative(self, distance_mm: float) -> dict[str, Any]:
-        payload = {"script": f"G91\nG1 X{distance_mm} F6000\nG90"}
-        return self._request("POST", "/printer/gcode/script", json=payload)
+        gcode = f"G91\nG1 X{distance_mm} F6000\nG90"
+        return self._send_gcode(gcode)
 
-    def _request(self, method: str, path: str, *, json: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _send_gcode(self, gcode: str) -> dict[str, Any]:
+        return self._send_command("gcode/script", {"script": gcode})
+
+    def _send_command(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
-            response = self.client.request(method, f"{self.base_url}{path}", json=json)
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPError as exc:
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.settimeout(5.0)
+            sock.connect(self.socket_path)
+            request = {"jsonrpc": "2.0", "method": method, "params": params or {}, "id": 1}
+            sock.sendall((json.dumps(request) + "\x03").encode())
+            response_data = b""
+            while True:
+                data = sock.recv(4096)
+                if not data:
+                    break
+                response_data += data
+                if b"\x03" in response_data:
+                    break
+            sock.close()
+            response_str = response_data.decode().rstrip("\x03")
+            return json.loads(response_str)
+        except (socket.error, json.JSONDecodeError, OSError) as exc:
             logger.warning("Klipper request failed: %s", exc)
             return {"ok": False, "error": str(exc)}
-
-    def close(self) -> None:
-        self.client.close()
