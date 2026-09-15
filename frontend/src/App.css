@@ -184,10 +184,12 @@
 }
 
 .app-shell {
+  width: 100%;
   max-width: 1100px;
   margin: 0 auto;
   padding: 32px 20px 48px;
   color: #edf8ee;
+  box-sizing: border-box;
 
   &,
   * {
@@ -249,6 +251,8 @@
   position: sticky;
   top: 12px;
   z-index: 10;
+  width: 100%;
+  box-sizing: border-box;
   background: rgba(18, 28, 22, 0.9);
   border: 1px solid #2a4737;
   border-radius: 10px;
@@ -256,6 +260,9 @@
   margin-bottom: 20px;
   min-height: 48px;
   color: #dfeee3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .panel-section {
@@ -448,12 +455,19 @@ option {
   background: rgba(9, 18, 13, 0.95);
   border: 1px solid #2a4737;
   border-radius: 12px;
+  width: 100%;
+  box-sizing: border-box;
   max-height: 340px;
   overflow: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
   padding: 14px;
   white-space: pre-wrap;
+  word-break: break-word;
   font-family: 'Consolas', 'Courier New', monospace;
   color: #dfeee3;
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 
 .zone-actions-row {
