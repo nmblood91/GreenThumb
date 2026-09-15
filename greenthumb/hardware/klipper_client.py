@@ -17,7 +17,9 @@ class KlipperClient:
         self.socket = None
 
     def status(self) -> dict[str, Any]:
-        return {"ok": True, "status": "connected"}
+        result = self._send_gcode("M114")
+        position = self._parse_position(result)
+        return {"ok": True, "position": position}
 
     def home_gantry(self) -> dict[str, Any]:
         return self._send_gcode("G28 X")
@@ -25,6 +27,16 @@ class KlipperClient:
     def move_gantry_relative(self, distance_mm: float) -> dict[str, Any]:
         gcode = f"G91\nG1 X{distance_mm} F6000\nG90"
         return self._send_gcode(gcode)
+
+    def _parse_position(self, response: dict[str, Any]) -> float:
+        try:
+            msg = response.get("result", "") or ""
+            if "X:" in msg:
+                x_str = msg.split("X:")[1].split()[0]
+                return float(x_str)
+        except (ValueError, IndexError, KeyError, AttributeError):
+            pass
+        return 0.0
 
     def _send_gcode(self, gcode: str) -> dict[str, Any]:
         return self._send_command("gcode/script", {"script": gcode})
