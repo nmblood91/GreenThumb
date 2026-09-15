@@ -9,6 +9,7 @@ This folder contains the deployment files needed to run GreenThumb on a Raspberr
 - `klipper/firmware.bin` — pre-built Klipper MCU firmware for SKR Mini E3 V2 (flash via SD card)
 - `klipper/printer.cfg.example` — bare-bones single-axis gantry Klipper template
 - `pi/install-green-thumb.sh` — install script for the Pi
+- `pi/send-gcode.py` — sends one gcode command to Klipper and prints the reply
 
 ## Flashing the SKR Mini E3 V2 Board
 
@@ -84,6 +85,41 @@ For a clean installation with the latest OS, start here:
 - The backend runs as a systemd service on port 8000.
 - Nginx serves the built frontend from `/opt/greenthumb/frontend/dist`.
 - `/api` requests are proxied to the Python API.
+
+## Wiring the X Endstop
+
+X homes against a mechanical switch on the **X-STOP** connector. Sensorless
+(StallGuard) homing is not usable on this board: the TMC2209 drives its DIAG
+output correctly, but that signal is not routed to `PC0`, so the pin reads high
+forever and `G28 X` completes instantly without moving.
+
+Mount the switch inside the dead zone at the **left** end of the rail, so the
+carriage trips it before reaching the mechanical limit.
+
+**Wiring** — two pins, no power needed:
+
+```
+Switch COM ──→ X-STOP  GND
+Switch NC  ──→ X-STOP  signal (PC0)
+```
+
+`printer.cfg` uses `endstop_pin: ^!PC0`, which expects a **normally-closed**
+switch, matching Y and Z. Verify before homing:
+
+```bash
+python3 /opt/greenthumb/deploy/pi/send-gcode.py QUERY_ENDSTOPS
+```
+
+Released it must read `stepper_x:open`; held down by hand, `stepper_x:TRIGGERED`.
+If those are backwards the switch is wired normally-open — use `^PC0` instead of
+`^!PC0`, rather than rewiring.
+
+**Calibrating `position_endstop`.** X0 is the first usable position, and the
+switch sits behind it at a negative coordinate, so homing can park clear of the
+switch instead of resting on the lower limit. `position_endstop` is how far the
+trigger point is from X0, negated — at `-20`, homing ends 20 mm past the switch.
+Pick the gap you want, then set `position_min` to the same value. Keep
+`position_max` at the travel remaining from X0 to the far dead zone.
 
 ## Wiring the Pump to SKR Board
 

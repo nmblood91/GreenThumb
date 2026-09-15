@@ -2,7 +2,7 @@
 """Send a gcode command to Klipper and print everything it says back.
 
     ./send-gcode.py QUERY_ENDSTOPS
-    ./send-gcode.py "SET_TMC_FIELD STEPPER=stepper_x FIELD=SGTHRS VALUE=90"
+    ./send-gcode.py "FORCE_MOVE STEPPER=stepper_x DISTANCE=10 VELOCITY=20"
 
 Klipper reports the output of commands like QUERY_ENDSTOPS separately from the
 RPC result, and only to connections that have subscribed to gcode output, so

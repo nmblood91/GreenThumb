@@ -9,20 +9,23 @@ max_accel: 4000
 max_z_velocity: 15
 max_z_accel: 100
 
-# X coordinates: the left hard stop is X-20. Usable travel is X0 to X960;
-# the 20 mm at each end of the 1 m rail is unreachable by the carriage.
+# X coordinates: the endstop switch trips at X-20, inside the dead zone at the
+# left end. Usable travel is X0 to X960; the 20 mm at each end of the 1 m rail
+# is unreachable by the carriage. Measure position_endstop against your own
+# switch mounting -- see deploy/README.md.
 [stepper_x]
 step_pin: PB13
 dir_pin: PB12
 enable_pin: !PB14
 microsteps: 16
 rotation_distance: 40
-endstop_pin: tmc2209_stepper_x:virtual_endstop
-homing_retract_dist: 0
+endstop_pin: ^!PC0
 position_min: -20
 position_max: 960
 position_endstop: -20
-homing_speed: 30
+homing_speed: 40
+second_homing_speed: 10
+homing_retract_dist: 5
 
 [tmc2209 stepper_x]
 uart_pin: PC11
@@ -30,22 +33,14 @@ tx_pin: PC10
 uart_address: 0
 run_current: 0.7
 stealthchop_threshold: 999999
-diag_pin: ^PC0
-driver_SGTHRS: 75
 
-# Sensorless homing needs the motor moving and off the hard stop before
-# StallGuard is meaningful, and a lower current so a 1 m gantry does not slam.
+# Park clear of the switch after homing so the first move in either direction
+# is legal; sitting on position_min makes any leftward jog fail.
 [homing_override]
 axes: x
-set_position_x: 0
 gcode:
-    SET_TMC_CURRENT STEPPER=stepper_x CURRENT=0.45
-    G4 P2000
-    G90
-    G1 X5 F1200
     G28.1 X
-    G4 P1000
-    SET_TMC_CURRENT STEPPER=stepper_x CURRENT=0.7
+    G90
     G1 X0 F3000
 
 [force_move]
