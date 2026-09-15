@@ -17,7 +17,9 @@ sudo -u pi mkdir -p /home/pi/printer_data/config /home/pi/printer_data/gcodes /h
 echo "Detecting Klipper device (waiting up to 30 seconds)..."
 KLIPPER_DEVICE=""
 for i in {1..30}; do
-  KLIPPER_DEVICE=$(ls /dev/serial/by-id/ 2>/dev/null | grep -i klipper | head -1)
+  # grep exits non-zero when the board is not up yet, which pipefail would
+  # otherwise turn into an immediate exit instead of a retry.
+  KLIPPER_DEVICE=$(ls /dev/serial/by-id/ 2>/dev/null | grep -i klipper | head -1 || true)
   if [ -n "$KLIPPER_DEVICE" ]; then
     echo "✓ Found Klipper device: $KLIPPER_DEVICE"
     break
@@ -62,7 +64,9 @@ fi
 
 cd /opt/greenthumb
 sudo mkdir -p /opt/greenthumb/logs
-sudo chown pi:pi /opt/greenthumb/logs
+# The installer runs as root, so without this the checkout is root-owned and
+# pi cannot pull updates or run the helper scripts.
+sudo chown -R pi:pi /opt/greenthumb
 python3 -m venv .venv
 . .venv/bin/activate
 pip install --upgrade pip
