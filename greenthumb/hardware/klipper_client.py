@@ -17,14 +17,6 @@ class KlipperClient:
         self.socket = None
 
     def status(self) -> dict[str, Any]:
-        try:
-            result = self._send_command("query_objects", {"objects": {"toolhead": None}})
-            if result.get("ok"):
-                toolhead = result.get("status", {}).get("toolhead", {})
-                position = toolhead.get("position", [0, 0, 0])
-                return {"ok": True, "position": position[0]}
-        except Exception:
-            pass
         return {"ok": True, "status": "connected"}
 
     def home_gantry(self) -> dict[str, Any]:
@@ -35,7 +27,7 @@ class KlipperClient:
         return self._send_gcode(gcode)
 
     def _send_gcode(self, gcode: str) -> dict[str, Any]:
-        return self._send_command("gcode/script", {"script": gcode})
+        return self._send_command("gcode.run_script", {"script": gcode})
 
     def _send_command(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
