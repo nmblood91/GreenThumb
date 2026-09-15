@@ -17,6 +17,14 @@ class KlipperClient:
         self.socket = None
 
     def status(self) -> dict[str, Any]:
+        try:
+            result = self._send_command("query_objects", {"objects": {"toolhead": None}})
+            if result.get("ok"):
+                toolhead = result.get("status", {}).get("toolhead", {})
+                position = toolhead.get("position", [0, 0, 0])
+                return {"ok": True, "position": position[0]}
+        except Exception:
+            pass
         return {"ok": True, "status": "connected"}
 
     def home_gantry(self) -> dict[str, Any]:
