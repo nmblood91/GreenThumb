@@ -46,7 +46,7 @@ class KlipperClient:
         return 0.0
 
     def _send_gcode(self, gcode: str) -> dict[str, Any]:
-        return self._send_command("gcode.run_script", {"script": gcode})
+        return self._send_command("gcode", {"script": gcode})
 
     def _send_command(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
