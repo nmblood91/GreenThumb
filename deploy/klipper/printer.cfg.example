@@ -9,6 +9,8 @@ max_accel: 4000
 max_z_velocity: 15
 max_z_accel: 100
 
+# X coordinates: the left hard stop is X-20. Usable travel is X0 to X960;
+# the 20 mm at each end of the 1 m rail is unreachable by the carriage.
 [stepper_x]
 step_pin: PB13
 dir_pin: PB12
@@ -17,10 +19,10 @@ microsteps: 16
 rotation_distance: 40
 endstop_pin: tmc2209_stepper_x:virtual_endstop
 homing_retract_dist: 0
-position_min: 0
-position_max: 1000
-position_endstop: 0
-homing_speed: 50
+position_min: -20
+position_max: 960
+position_endstop: -20
+homing_speed: 30
 
 [tmc2209 stepper_x]
 uart_pin: PC11
@@ -28,8 +30,26 @@ tx_pin: PC10
 uart_address: 0
 run_current: 0.7
 stealthchop_threshold: 999999
-diag_pin: ^PC3
+diag_pin: ^PC0
 driver_SGTHRS: 75
+
+# Sensorless homing needs the motor moving and off the hard stop before
+# StallGuard is meaningful, and a lower current so a 1 m gantry does not slam.
+[homing_override]
+axes: x
+set_position_x: 0
+gcode:
+    SET_TMC_CURRENT STEPPER=stepper_x CURRENT=0.45
+    G4 P2000
+    G90
+    G1 X5 F1200
+    G28.1 X
+    G4 P1000
+    SET_TMC_CURRENT STEPPER=stepper_x CURRENT=0.7
+    G1 X0 F3000
+
+[force_move]
+enable_force_move: True
 
 [stepper_y]
 step_pin: PB10

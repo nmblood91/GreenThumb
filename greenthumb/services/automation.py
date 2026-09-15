@@ -52,18 +52,22 @@ class GreenThumbAutomation:
         if self.zones:
             self.zones[-1].led_end_index = total_leds - 1
 
+    def usable_travel_mm(self) -> float:
+        """Reachable X range, where 0 is the first position the carriage can occupy."""
+        rail_length = max(float(settings.gantry_rail_length_mm), 1.0)
+        margin = max(float(settings.gantry_position_margin_mm), 0.0)
+        return max(rail_length - (margin * 2), 1.0)
+
     def apply_default_zone_positions(self) -> None:
         if not self.zones:
             return
 
-        rail_length = max(float(settings.gantry_rail_length_mm), 1.0)
-        margin = max(float(settings.gantry_position_margin_mm), 0.0)
-        usable_length = max(rail_length - (margin * 2), 1.0)
+        usable_length = self.usable_travel_mm()
         zone_count = len(self.zones)
 
         for index, zone in enumerate(self.zones):
             ratio = (index + 1) / (zone_count + 1)
-            zone.position_mm = round(margin + (usable_length * ratio), 1)
+            zone.position_mm = round(usable_length * ratio, 1)
 
     def get_zone_positions(self) -> list[dict[str, object]]:
         return [{
@@ -77,8 +81,7 @@ class GreenThumbAutomation:
         if zone is None:
             raise ValueError(f"Unknown zone_id: {zone_id}")
 
-        max_position = settings.gantry_rail_length_mm
-        bounded_position = max(0.0, min(float(position_mm), max_position))
+        bounded_position = max(0.0, min(float(position_mm), self.usable_travel_mm()))
         zone.position_mm = round(bounded_position, 1)
 
         return {
@@ -152,7 +155,7 @@ class GreenThumbAutomation:
         if zone is None:
             raise ValueError(f"Unknown zone_id: {zone_id}")
 
-        return self.move_gantry_relative(zone.position_mm)
+        return self.klipper.move_gantry_absolute(zone.position_mm)
 
     def get_zone(self, zone_id: str) -> ZoneSpec | None:
         return next((zone for zone in self.zones if zone.zone_id == zone_id), None)

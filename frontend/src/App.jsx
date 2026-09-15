@@ -25,11 +25,16 @@ function App() {
 
     const data = await response.json()
     if (!response.ok) {
-      throw new Error(data.detail || 'Request failed')
+      throw new Error(data.detail || data.error || 'Request failed')
     }
 
     return data
   }
+
+  // Motion endpoints answer 200 with {ok: false, error} when Klipper refuses
+  // the move, so a successful request is not a successful move.
+  const describeResult = (result) =>
+    result?.ok === false ? `failed - ${result.error}` : 'ok'
 
   const loadDashboard = async () => {
     try {
@@ -66,24 +71,18 @@ function App() {
 
   const gantryPosition = useMemo(() => {
     const movement = overview?.movement ?? {}
-    const rawValue =
-      movement.x_mm ??
-      movement.x_position ??
-      movement.position_mm ??
-      movement.position ??
-      overview?.position_mm ??
-      zones[0]?.position_mm ??
-      0
+    if (movement.ok === false) return 'unavailable'
+    if (!movement.homed) return 'not homed'
 
-    const numericValue = Number(rawValue)
-    return Number.isFinite(numericValue) ? numericValue : 0
-  }, [overview, zones])
+    const numericValue = Number(movement.position)
+    return Number.isFinite(numericValue) ? `${numericValue} mm` : 'unknown'
+  }, [overview])
 
   const homeGantry = async () => {
     try {
       setStatus('Homing gantry...')
       const result = await fetchJson('/gantry/home', { method: 'POST' })
-      setStatus(`Gantry homed: ${JSON.stringify(result)}`)
+      setStatus(`Home gantry: ${describeResult(result)}`)
       await loadDashboard()
     } catch (error) {
       setStatus(`Home failed: ${error.message}`)
@@ -97,7 +96,7 @@ function App() {
         method: 'POST',
         body: JSON.stringify({ distance_mm: distance }),
       })
-      setStatus(`Move result: ${JSON.stringify(result)}`)
+      setStatus(`Move gantry ${distance} mm: ${describeResult(result)}`)
       await loadDashboard()
     } catch (error) {
       setStatus(`Move failed: ${error.message}`)
@@ -109,7 +108,8 @@ function App() {
       const zone = zones.find((item) => item.zone_id === zoneId)
       setStatus(`Moving gantry to ${zone?.name || zoneId}...`)
       const result = await fetchJson(`/zones/${zoneId}/move`, { method: 'POST' })
-      setStatus(`Moved to ${zone?.name || zoneId}: ${JSON.stringify(result)}`)
+      setStatus(`Move to ${zone?.name || zoneId}: ${describeResult(result)}`)
+      await loadDashboard()
     } catch (error) {
       setStatus(`Move to zone failed: ${error.message}`)
     }

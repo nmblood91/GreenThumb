@@ -7,7 +7,7 @@ export function GantryPanel({ zones, gantryPosition, onHome, onMove, onMoveToZon
         <div className="camera-placeholder">Camera feed pending</div>
       </div>
 
-      <div className="position-readout">Position: {gantryPosition} mm</div>
+      <div className="position-readout">Position: {gantryPosition}</div>
 
       <div className="motion-grid">
         <button className="primary" onClick={onHome}>Home Gantry</button>

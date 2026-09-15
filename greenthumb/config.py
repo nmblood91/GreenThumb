@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     pump_pin: int = 17
     led_count: int = 60
     gantry_rail_length_mm: float = 1000.0
-    gantry_position_margin_mm: float = 75.0
+    gantry_position_margin_mm: float = 20.0
     debug: bool = False
 
     model_config = SettingsConfigDict(

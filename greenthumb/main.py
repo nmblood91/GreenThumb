@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from datetime import time
-from fastapi import Body, FastAPI
+from fastapi import Body, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from greenthumb.config import settings
 from greenthumb.logging_setup import log_event, read_recent_logs, setup_logging
@@ -25,6 +26,19 @@ app.add_middleware(
 )
 
 automation = GreenThumbAutomation()
+
+
+@app.exception_handler(ValueError)
+async def handle_value_error(request: Request, exc: ValueError) -> JSONResponse:
+    return JSONResponse(status_code=400, content={"ok": False, "error": str(exc)})
+
+
+def log_motion(result: dict[str, object], action: str) -> dict[str, object]:
+    if result.get("ok"):
+        log_event(f"{action}: ok")
+    else:
+        log_event(f"{action}: failed - {result.get('error')}")
+    return result
 
 
 @app.get("/")
@@ -160,31 +174,25 @@ async def set_zone_position(zone_id: str, payload: dict[str, float] = Body(defau
 
 @app.post(f"{settings.api_prefix}/zones/{{zone_id}}/move")
 async def move_to_zone(zone_id: str) -> dict[str, object]:
-    result = automation.move_to_zone(zone_id)
-    log_event(f"Moved gantry to zone {zone_id}")
-    return result
+    return log_motion(automation.move_to_zone(zone_id), f"Move gantry to zone {zone_id}")
 
 
 @app.post(f"{settings.api_prefix}/gantry/home")
 async def home_gantry() -> dict[str, object]:
-    result = automation.home_gantry()
-    log_event("Gantry homed")
-    return result
+    return log_motion(automation.home_gantry(), "Home gantry")
 
 
 @app.post(f"{settings.api_prefix}/gantry/move")
 async def move_gantry(payload: dict[str, float] = Body(default_factory=dict)) -> dict[str, object]:
     distance_mm = float(payload.get("distance_mm", 0.0))
-    result = automation.move_gantry_relative(distance_mm)
-    log_event(f"Gantry moved by {distance_mm} mm")
-    return result
+    return log_motion(
+        automation.move_gantry_relative(distance_mm), f"Move gantry by {distance_mm} mm"
+    )
 
 
 @app.post(f"{settings.api_prefix}/motion/home/{{axis}}")
 async def home_axis(axis: str) -> dict[str, object]:
-    result = automation.home_motion_axis(axis)
-    log_event(f"Axis {axis} homed")
-    return result
+    return log_motion(automation.home_motion_axis(axis), f"Home axis {axis}")
 
 
 @app.post(f"{settings.api_prefix}/motion/move")
@@ -192,9 +200,10 @@ async def move_axis(payload: dict[str, float] = Body(default_factory=dict)) -> d
     x_mm = float(payload.get("x_mm", 0.0))
     y_mm = float(payload.get("y_mm", 0.0))
     z_mm = float(payload.get("z_mm", 0.0))
-    result = automation.move_axis_relative(x_mm=x_mm, y_mm=y_mm, z_mm=z_mm)
-    log_event(f"Manual axis move: x={x_mm} y={y_mm} z={z_mm}")
-    return result
+    return log_motion(
+        automation.move_axis_relative(x_mm=x_mm, y_mm=y_mm, z_mm=z_mm),
+        f"Manual axis move x={x_mm} y={y_mm} z={z_mm}",
+    )
 
 
 if __name__ == "__main__":
