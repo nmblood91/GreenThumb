@@ -17,36 +17,17 @@ class KlipperClient:
         self.socket = None
 
     def status(self) -> dict[str, Any]:
-        result = self._send_gcode("M114")
-        position = self._parse_m114_response(result)
-        return {"ok": True, "position": position}
+        return {"ok": True, "status": "connected"}
 
     def home_gantry(self) -> dict[str, Any]:
-        result = self._send_gcode("G28 X")
-        position = self._send_gcode("M114")
-        parsed_pos = self._parse_m114_response(position)
-        return {"ok": result.get("ok", True), "position": parsed_pos}
+        return self._send_gcode("G28 X")
 
     def move_gantry_relative(self, distance_mm: float) -> dict[str, Any]:
         gcode = f"G91\nG1 X{distance_mm} F6000\nG90"
-        result = self._send_gcode(gcode)
-        position = self._send_gcode("M114")
-        parsed_pos = self._parse_m114_response(position)
-        return {"ok": result.get("ok", True), "position": parsed_pos}
-
-    def _parse_m114_response(self, response: dict[str, Any]) -> float:
-        try:
-            if isinstance(response, dict) and "result" in response:
-                result_str = response["result"]
-                if "X:" in result_str:
-                    x_part = result_str.split("X:")[1].split()[0]
-                    return float(x_part)
-        except (ValueError, IndexError, AttributeError, KeyError):
-            pass
-        return 0.0
+        return self._send_gcode(gcode)
 
     def _send_gcode(self, gcode: str) -> dict[str, Any]:
-        return self._send_command("gcode", {"script": gcode})
+        return self._send_command("gcode/script", {"script": gcode})
 
     def _send_command(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         try:
