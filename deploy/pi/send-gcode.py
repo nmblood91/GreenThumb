@@ -4,8 +4,9 @@
     ./send-gcode.py QUERY_ENDSTOPS
     ./send-gcode.py "SET_TMC_FIELD STEPPER=stepper_x FIELD=SGTHRS VALUE=90"
 
-Klipper answers commands like QUERY_ENDSTOPS with an async notification rather
-than in the RPC result, so both have to be read off the socket.
+Klipper reports the output of commands like QUERY_ENDSTOPS separately from the
+RPC result, and only to connections that have subscribed to gcode output, so
+this subscribes first and drains anything still in flight after the reply.
 """
 
 import json
@@ -13,6 +14,8 @@ import socket
 import sys
 
 SOCKET_PATH = "/run/klipper/uds"
+OUTPUT_KEY = "gcode_output"
+DRAIN_SECONDS = 0.5
 
 
 def main() -> int:
@@ -31,36 +34,59 @@ def main() -> int:
         print(f"Cannot reach Klipper at {SOCKET_PATH}: {exc}")
         return 1
 
-    request = {
+    def send(payload: dict) -> None:
+        sock.sendall((json.dumps(payload) + "\x03").encode())
+
+    def finish(code: int) -> int:
+        if code == 0:
+            print(f"{script}: ok")
+        return code
+
+    send({
+        "id": 0,
+        "method": "gcode/subscribe_output",
+        "params": {"response_template": {"key": OUTPUT_KEY}},
+    })
+    send({
         "jsonrpc": "2.0",
         "method": "gcode/script",
         "params": {"script": script},
         "id": 1,
-    }
-    sock.sendall((json.dumps(request) + "\x03").encode())
+    })
 
     buffer = b""
+    outcome: int | None = None
     try:
         while True:
-            data = sock.recv(4096)
+            try:
+                data = sock.recv(4096)
+            except socket.timeout:
+                if outcome is None:
+                    print(f"No reply within {timeout:.0f}s")
+                    return 1
+                return finish(outcome)
+
             if not data:
-                print("Klipper closed the connection")
-                return 1
+                if outcome is None:
+                    print("Klipper closed the connection")
+                    return 1
+                return finish(outcome)
+
             buffer += data
             while b"\x03" in buffer:
                 raw, buffer = buffer.split(b"\x03", 1)
                 message = json.loads(raw.decode())
-                if message.get("method") == "notify_gcode_response":
-                    print("".join(message.get("params", [])))
+
+                if message.get("key") == OUTPUT_KEY:
+                    print(message.get("params", {}).get("response", "").rstrip())
                 elif message.get("id") == 1:
                     if "error" in message:
                         print(f"ERROR: {message['error'].get('message', message['error'])}")
-                        return 1
-                    print(f"{script}: ok")
-                    return 0
-    except socket.timeout:
-        print(f"No reply within {timeout:.0f}s")
-        return 1
+                        outcome = 1
+                    else:
+                        outcome = 0
+                    # Output can still be in flight behind the reply.
+                    sock.settimeout(DRAIN_SECONDS)
     finally:
         sock.close()
 
