@@ -1,24 +1,20 @@
 import { useEffect, useState } from 'react'
 
-export function ZonesPanel({ zones, onSave }) {
+const draftFrom = (zone) => ({
+  name: zone.name,
+  light_start_time: zone.light_start_time ?? '08:00',
+  light_stop_time: zone.light_stop_time ?? '20:00',
+  moisture_target: zone.moisture_target ?? 45,
+  watering_volume_ml: zone.watering_volume_ml ?? 180,
+  position_mm: zone.position_mm ?? 0,
+})
+
+export function ZonesPanel({ zones, onSave, onWater }) {
   const [drafts, setDrafts] = useState({})
   const [expandedZoneIds, setExpandedZoneIds] = useState([])
 
   useEffect(() => {
-    setDrafts(
-      Object.fromEntries(
-        zones.map((zone) => [
-          zone.zone_id,
-          {
-            name: zone.name,
-            light_start_time: zone.light_start_time ?? '08:00',
-            light_stop_time: zone.light_stop_time ?? '20:00',
-            moisture_target: zone.moisture_target ?? 45,
-            position_mm: zone.position_mm ?? 0,
-          },
-        ]),
-      ),
-    )
+    setDrafts(Object.fromEntries(zones.map((zone) => [zone.zone_id, draftFrom(zone)])))
   }, [zones])
 
   const toggleZoneExpanded = (zoneId) => {
@@ -44,13 +40,7 @@ export function ZonesPanel({ zones, onSave }) {
       <h2>Zone Settings</h2>
       <div className="cards">
         {zones.map((zone) => {
-          const draft = drafts[zone.zone_id] || {
-            name: zone.name,
-            light_start_time: zone.light_start_time ?? '08:00',
-            light_stop_time: zone.light_stop_time ?? '20:00',
-            moisture_target: zone.moisture_target ?? 45,
-            position_mm: zone.position_mm ?? 0,
-          }
+          const draft = drafts[zone.zone_id] || draftFrom(zone)
           const isExpanded = expandedZoneIds.includes(zone.zone_id)
 
           return (
@@ -100,6 +90,18 @@ export function ZonesPanel({ zones, onSave }) {
                       />
                     </label>
                     <label>
+                      Watering volume (mL)
+                      <input
+                        type="number"
+                        min="0"
+                        step="10"
+                        value={draft.watering_volume_ml}
+                        onChange={(event) =>
+                          updateDraft(zone.zone_id, 'watering_volume_ml', event.target.value)
+                        }
+                      />
+                    </label>
+                    <label>
                       Watering location (mm)
                       <input
                         type="number"
@@ -116,6 +118,7 @@ export function ZonesPanel({ zones, onSave }) {
                     >
                       Save Zone
                     </button>
+                    <button onClick={() => onWater(zone.zone_id)}>Water Now</button>
                   </div>
                 </>
               )}

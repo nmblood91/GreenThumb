@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 
-const API_BASE = 'http://localhost:8000/api/v1'
+// Relative so the page works from any device. An absolute localhost URL resolves
+// to whatever machine the browser is on, not the Pi.
+const API_BASE = '/api/v1'
 
 const toHexColor = (value) => {
   if (Array.isArray(value)) {
@@ -34,16 +36,13 @@ const UI_MODE_BY_BACKEND = {
 
 const DEFAULT_COLOR_ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR']
 
-export function GeneralPanel({ overview, zones, cameraStatus }) {
+export function GeneralPanel({ overview, cameraStatus }) {
   const [settings, setSettings] = useState({
     ledMode: 'schedule',
     brightness: 75,
     color: '#00ff80',
     colorOrder: 'RGB',
-    deviceName: 'GreenThumb',
     cameraEnabled: true,
-    defaultWateringVolume: 180,
-    ledCount: 20,
   })
 
   const lighting = overview?.lighting
@@ -56,10 +55,7 @@ export function GeneralPanel({ overview, zones, cameraStatus }) {
       brightness: lighting?.brightness ?? current.brightness,
       color: toHexColor(lighting?.color || current.color),
       colorOrder: lighting?.color_order ?? current.colorOrder,
-      ledCount: lighting?.led_count ?? current.ledCount,
-      deviceName: overview?.device_name || current.deviceName,
       cameraEnabled: overview?.camera_enabled ?? current.cameraEnabled,
-      defaultWateringVolume: overview?.default_watering_volume_ml ?? current.defaultWateringVolume,
     }))
   }, [overview])
 
@@ -160,20 +156,6 @@ export function GeneralPanel({ overview, zones, cameraStatus }) {
 
         <div className="field-row">
           <label>
-            LED count
-            <input
-              type="number"
-              min="1"
-              value={settings.ledCount}
-              onChange={(event) =>
-                setSettings((current) => ({ ...current, ledCount: Number(event.target.value) }))
-              }
-            />
-          </label>
-        </div>
-
-        <div className="field-row">
-          <label>
             LED colour order
             <select
               value={settings.colorOrder}
@@ -209,34 +191,6 @@ export function GeneralPanel({ overview, zones, cameraStatus }) {
               }
             />
             Camera enabled
-          </label>
-        </div>
-
-        <div className="field-row">
-          <label>
-            Device name / room name
-            <input
-              type="text"
-              value={settings.deviceName}
-              onChange={(event) =>
-                setSettings((current) => ({ ...current, deviceName: event.target.value }))
-              }
-            />
-          </label>
-        </div>
-
-        <div className="field-row">
-          <label>
-            Default watering volume (mL)
-            <input
-              type="number"
-              min="0"
-              step="10"
-              value={settings.defaultWateringVolume}
-              onChange={(event) =>
-                setSettings((current) => ({ ...current, defaultWateringVolume: Number(event.target.value) }))
-              }
-            />
           </label>
         </div>
 

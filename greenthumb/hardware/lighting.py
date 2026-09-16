@@ -150,9 +150,6 @@ class LedController:
         self._wake.set()
         return {"status": "ok", "color_order": normalised}
 
-    def rainbow_cycle(self) -> dict[str, str]:
-        return self.set_mode("rainbow")
-
     def status(self) -> dict[str, object]:
         return {
             "mode": self.mode,

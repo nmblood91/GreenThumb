@@ -76,8 +76,7 @@ async def index() -> dict[str, str]:
     return {
         "status": "ok",
         "app": settings.app_name,
-        "ui": "React frontend served from http://localhost:5173",
-        "api": "http://localhost:8000/api/v1",
+        "api": settings.api_prefix,
     }
 
 
@@ -113,9 +112,9 @@ async def write_log(payload: dict[str, str] = Body(default_factory=dict)) -> dic
 
 
 @app.post(f"{settings.api_prefix}/water/{{zone_id}}")
-def water_zone(zone_id: str, volume_ml: int = 180) -> dict[str, object]:
+def water_zone(zone_id: str, volume_ml: int | None = None) -> dict[str, object]:
     result = automation.water_zone(zone_id, volume_ml)
-    log_event(f"Zone {zone_id} watered with {volume_ml} mL")
+    log_event(f"Zone {zone_id} watered with {result.get('volume_ml')} mL")
     return result
 
 
@@ -174,6 +173,7 @@ async def list_zones() -> list[dict[str, object]]:
             "light_start_time": zone.light_start_time.isoformat(timespec="minutes"),
             "light_stop_time": zone.light_stop_time.isoformat(timespec="minutes"),
             "moisture_target": zone.moisture_target,
+            "watering_volume_ml": zone.watering_volume_ml,
             "led_start_index": zone.led_start_index,
             "led_end_index": zone.led_end_index,
         }
@@ -203,6 +203,14 @@ async def update_moisture_target(zone_id: str, payload: dict[str, float] = Body(
     moisture_target = float(payload.get("moisture_target", 45.0))
     result = automation.update_moisture_target(zone_id, moisture_target)
     log_event(f"Zone {zone_id} moisture target set to {result['moisture_target']}%")
+    return result
+
+
+@app.post(f"{settings.api_prefix}/zones/{{zone_id}}/volume")
+async def update_watering_volume(zone_id: str, payload: dict[str, int] = Body(default_factory=dict)) -> dict[str, object]:
+    volume_ml = int(payload.get("watering_volume_ml", 180))
+    result = automation.update_watering_volume(zone_id, volume_ml)
+    log_event(f"Zone {zone_id} watering volume set to {result['watering_volume_ml']} mL")
     return result
 
 

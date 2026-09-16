@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, time
-from typing import Literal
 
 
 @dataclass
@@ -10,9 +9,10 @@ class ZoneSpec:
     name: str
     zone_id: str
     sensor_address: int
-    moisture_target: int = 15
-    watering_volume_ml: int = 100
-    light_mode: Literal["off", "ambient", "cycle", "manual"] = "ambient"
+    # Required rather than defaulted: every zone sets these, and a default that
+    # no caller uses is a value nobody notices is wrong.
+    moisture_target: int
+    watering_volume_ml: int
     light_start_time: time = time(8, 0)
     light_stop_time: time = time(20, 0)
     position_mm: int = 0

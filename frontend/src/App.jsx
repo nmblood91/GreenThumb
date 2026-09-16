@@ -137,6 +137,11 @@ function App() {
         body: JSON.stringify({ moisture_target: Number(zone.moisture_target) }),
       })
 
+      await fetchJson(`/zones/${zone.zone_id}/volume`, {
+        method: 'POST',
+        body: JSON.stringify({ watering_volume_ml: Number(zone.watering_volume_ml) }),
+      })
+
       await fetchJson(`/zones/${zone.zone_id}/position`, {
         method: 'POST',
         body: JSON.stringify({ position_mm: Number(zone.position_mm) }),
@@ -146,6 +151,25 @@ function App() {
       await loadDashboard()
     } catch (error) {
       setStatus(`Save failed: ${error.message}`)
+    }
+  }
+
+  const waterZone = async (zoneId) => {
+    try {
+      const zone = zones.find((item) => item.zone_id === zoneId)
+      const label = zone?.name || zoneId
+      // The request does not return until the gantry has moved and the dose has
+      // finished, which is over a minute, so say so rather than looking hung.
+      setStatus(`Watering ${label}, this takes a minute...`)
+      const result = await fetchJson(`/water/${zoneId}`, { method: 'POST' })
+      setStatus(
+        result?.status === 'error'
+          ? `Water ${label}: failed - ${result.error}`
+          : `Watered ${label} with ${result.volume_ml} mL.`,
+      )
+      await loadDashboard()
+    } catch (error) {
+      setStatus(`Water failed: ${error.message}`)
     }
   }
 
@@ -166,10 +190,12 @@ function App() {
       )}
 
       {activeTab === 'general' && (
-        <GeneralPanel overview={overview} zones={zones} cameraStatus={cameraStatus} />
+        <GeneralPanel overview={overview} cameraStatus={cameraStatus} />
       )}
 
-      {activeTab === 'plants' && <ZonesPanel zones={zones} onSave={saveZone} />}
+      {activeTab === 'plants' && (
+        <ZonesPanel zones={zones} onSave={saveZone} onWater={waterZone} />
+      )}
       {activeTab === 'logs' && <LogsPanel logs={logs} />}
     </div>
   )

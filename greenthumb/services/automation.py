@@ -102,24 +102,6 @@ class GreenThumbAutomation:
         margin = max(float(settings.gantry_position_margin_mm), 0.0)
         return max(rail_length - (margin * 2), 1.0)
 
-    def apply_default_zone_positions(self) -> None:
-        if not self.zones:
-            return
-
-        usable_length = self.usable_travel_mm()
-        zone_count = len(self.zones)
-
-        for index, zone in enumerate(self.zones):
-            ratio = (index + 1) / (zone_count + 1)
-            zone.position_mm = round(usable_length * ratio, 1)
-
-    def get_zone_positions(self) -> list[dict[str, object]]:
-        return [{
-            "zone_id": zone.zone_id,
-            "name": zone.name,
-            "position_mm": zone.position_mm,
-        } for zone in self.zones]
-
     def set_zone_position(self, zone_id: str, position_mm: float) -> dict[str, object]:
         zone = next((item for item in self.zones if item.zone_id == zone_id), None)
         if zone is None:
@@ -225,7 +207,8 @@ class GreenThumbAutomation:
             return True
         return datetime.now() - last >= timedelta(minutes=settings.watering_cooldown_minutes)
 
-    def _move_and_water(self, zone: ZoneSpec) -> dict[str, object]:
+    def _move_and_water(self, zone: ZoneSpec, volume_ml: int | None = None) -> dict[str, object]:
+        volume = zone.watering_volume_ml if volume_ml is None else max(0, int(volume_ml))
         move = self.klipper.move_gantry_absolute(zone.position_mm)
         if not move.get("ok"):
             logger.warning(
@@ -233,9 +216,9 @@ class GreenThumbAutomation:
             )
             return {"status": "error", "zone_id": zone.zone_id, "error": move.get("error")}
 
-        self.pump.deliver_ml(zone.watering_volume_ml)
+        self.pump.deliver_ml(volume)
         self._last_watered[zone.zone_id] = datetime.now()
-        return {"status": "ok", "zone_id": zone.zone_id, "volume_ml": zone.watering_volume_ml}
+        return {"status": "ok", "zone_id": zone.zone_id, "volume_ml": volume}
 
     def _last_watered_iso(self, zone_id: str) -> str | None:
         last = self._last_watered.get(zone_id)
@@ -272,11 +255,15 @@ class GreenThumbAutomation:
             for address in self.sensor_hub.addresses
         ]
 
-    def water_zone(self, zone_id: str, volume_ml: int = 180) -> dict[str, object]:
+    def water_zone(self, zone_id: str, volume_ml: int | None = None) -> dict[str, object]:
+        zone = self.get_zone(zone_id)
+        if zone is None:
+            raise ValueError(f"Unknown zone_id: {zone_id}")
+
+        # Moves first, like the automatic path. Pumping without moving waters
+        # whatever the nozzle happens to be parked over.
         with self._exclusive(f"Watering {zone_id}"):
-            self.pump.deliver_ml(volume_ml)
-            self._last_watered[zone_id] = datetime.now()
-        return {"status": "ok", "zone_id": zone_id, "volume_ml": volume_ml}
+            return self._move_and_water(zone, volume_ml)
 
     def set_light_mode(self, mode: str) -> dict[str, object]:
         result = self.leds.set_mode(mode)
@@ -352,23 +339,16 @@ class GreenThumbAutomation:
             "light_stop_time": zone.light_stop_time.isoformat(timespec="minutes"),
         }
 
-    def set_led_range(self, zone_id: str, start_index: int, end_index: int) -> dict[str, object]:
+    def update_watering_volume(self, zone_id: str, volume_ml: int) -> dict[str, object]:
         zone = self.get_zone(zone_id)
         if zone is None:
             raise ValueError(f"Unknown zone_id: {zone_id}")
 
-        total_leds = max(settings.led_count, 1)
-        safe_start = max(0, min(int(start_index), total_leds - 1))
-        safe_end = max(safe_start, min(int(end_index), total_leds - 1))
-
-        zone.led_start_index = safe_start
-        zone.led_end_index = safe_end
-
+        zone.watering_volume_ml = max(0, int(volume_ml))
         return {
             "status": "ok",
             "zone_id": zone_id,
-            "led_start_index": zone.led_start_index,
-            "led_end_index": zone.led_end_index,
+            "watering_volume_ml": zone.watering_volume_ml,
         }
 
     def update_moisture_target(self, zone_id: str, moisture_target: float) -> dict[str, object]:
