@@ -57,8 +57,16 @@ For a clean installation with the latest OS, start here:
    ```bash
    sudo apt update
    sudo apt install -y git
-   sudo git clone --depth 1 https://github.com/nmblood91/GreenThumb.git /opt/greenthumb
+   sudo mkdir -p /opt/greenthumb
+   sudo chown pi:pi /opt/greenthumb
+   git clone --depth 1 https://github.com/nmblood91/GreenThumb.git /opt/greenthumb
    ```
+
+   `sudo` creates the directory because `/opt` is root-owned, but the clone
+   itself runs as `pi` so the checkout and `.git` belong to `pi` from the start.
+   Cloning with `sudo` instead leaves a root-owned repo, and every later
+   `sudo git` writes root-owned objects into `.git` that plain git then can't
+   update.
 
 5. **Run the installation script** (this installs everything):
    ```bash
@@ -91,6 +99,23 @@ For a clean installation with the latest OS, start here:
    - Open `http://greenthumb.local` in your browser
    - Or use the Pi's IP: `http://<pi-ip>`
 
+
+## Updating an installed Pi
+
+```bash
+cd /opt/greenthumb
+git pull
+sudo systemctl restart greenthumb-api.service
+```
+
+**Never `sudo git pull`.** The repo is owned by `pi`, and running git as root
+writes root-owned objects into `.git` that plain git can no longer update. `sudo`
+is only needed for the initial clone's parent directory and for the install
+script.
+
+Re-run the install script instead of pulling when the change touches
+`printer.cfg.example`, the systemd units, or the nginx config — those are copied
+out of the repo at install time, so a pull alone does not apply them.
 
 ## Service behavior
 
