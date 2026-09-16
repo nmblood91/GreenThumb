@@ -47,15 +47,21 @@ class SoilSensorHub:
             return
 
         for address in self.addresses:
-            try:
-                self._reset(address)
-                hw_id = self._read(address, SEESAW_STATUS_BASE, SEESAW_STATUS_HW_ID, 1)[0]
-                if hw_id not in VALID_HW_IDS:
-                    raise SensorReadError(f"unexpected seesaw hardware id 0x{hw_id:02x}")
-                self._initialized_sensors.add(address)
-                logger.info("Initialized STEMMA sensor at 0x%02x (hw id 0x%02x)", address, hw_id)
-            except Exception as exc:
-                logger.warning("No STEMMA sensor at 0x%02x: %s", address, exc)
+            self._try_initialize(address)
+
+    def _try_initialize(self, address: int) -> bool:
+        try:
+            self._reset(address)
+            hw_id = self._read(address, SEESAW_STATUS_BASE, SEESAW_STATUS_HW_ID, 1)[0]
+            if hw_id not in VALID_HW_IDS:
+                raise SensorReadError(f"unexpected seesaw hardware id 0x{hw_id:02x}")
+        except Exception as exc:
+            logger.debug("No STEMMA sensor at 0x%02x: %s", address, exc)
+            return False
+
+        self._initialized_sensors.add(address)
+        logger.info("Initialized STEMMA sensor at 0x%02x (hw id 0x%02x)", address, hw_id)
+        return True
 
     def _write(self, address: int, base: int, function: int, payload: list[int] | None = None) -> None:
         if not self.bus:
@@ -104,7 +110,9 @@ class SoilSensorHub:
         return [self.read_one(address) for address in self.addresses]
 
     def read_one(self, address: int) -> SensorSample:
-        if address not in self._initialized_sensors:
+        # Sensors get plugged in after startup, so re-probe addresses that have
+        # not answered yet instead of writing them off until the next restart.
+        if address not in self._initialized_sensors and not self._try_initialize(address):
             return SensorSample(sensor_address=address, moisture_percent=-1.0, temperature_c=-1.0)
 
         try:
@@ -112,6 +120,9 @@ class SoilSensorHub:
             temperature = self._read_temperature(address)
         except Exception as exc:
             logger.error("Error reading sensor at 0x%02x: %s", address, exc)
+            # Forget it so the next poll re-probes; a reset often recovers a
+            # sensor that dropped off, and this covers unplug/replug too.
+            self._initialized_sensors.discard(address)
             return SensorSample(sensor_address=address, moisture_percent=-1.0, temperature_c=-1.0)
 
         logger.debug("0x%02x moisture=%d temp=%.1fC", address, moisture, temperature)
