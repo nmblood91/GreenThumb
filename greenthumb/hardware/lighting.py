@@ -158,6 +158,8 @@ class LedController:
             "led_count": self.led_count,
             "color_order": self.strip.color_order,
             "color_order_options": list(VALID_COLOR_ORDERS),
-            "connected": self.strip.available,
+            # Whether frames can be sent, not whether a strip is listening: the
+            # data line is write-only, so an attached strip is not detectable.
+            "spi_ready": self.strip.available,
             "error": self.strip.error,
         }

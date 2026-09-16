@@ -175,9 +175,10 @@ export function GeneralPanel({ overview, cameraStatus }) {
           </p>
         </div>
 
-        {lighting && lighting.connected === false && (
+        {lighting && lighting.spi_ready === false && (
           <p className="field-hint warning">
-            LED strip not connected{lighting.error ? `: ${lighting.error}` : ''}
+            LED output unavailable, SPI did not open
+            {lighting.error ? `: ${lighting.error}` : ''}
           </p>
         )}
 

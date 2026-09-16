@@ -186,7 +186,9 @@ else
 fi
 
 if [ -e /dev/spidev0.0 ]; then
-  echo "✓ SPI device present (LED strip)"
+  # Write-only bus: whether a strip is actually on the other end is not
+  # detectable, so claim only what this proves.
+  echo "✓ SPI enabled (required for the LED strip; cannot detect the strip itself)"
 else
   echo "⚠️  /dev/spidev0.0 missing — LED strip will not light"
   REBOOT_NEEDED=1
