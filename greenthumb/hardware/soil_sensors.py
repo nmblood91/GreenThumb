@@ -15,21 +15,28 @@ class SoilSensorHub:
     """Reads moisture sensors for each plant zone via Adafruit STEMMA soil sensors using Seesaw protocol."""
 
     def __init__(self, addresses: list[int] | None = None) -> None:
+        print(f"DEBUG: SoilSensorHub.__init__ called with addresses={addresses}", flush=True)
         self.addresses = addresses or [0x36, 0x37, 0x38, 0x39]
         self.bus: smbus2.SMBus | None = None
         self._initialized_sensors: set[int] = set()
 
         try:
+            print(f"DEBUG: Opening I2C bus 1", flush=True)
             self.bus = smbus2.SMBus(1)  # Raspberry Pi I2C bus 1
+            print(f"DEBUG: I2C bus opened, testing addresses: {self.addresses}", flush=True)
             for addr in self.addresses:
                 try:
+                    print(f"DEBUG: Testing sensor at 0x{addr:02x}", flush=True)
                     # Test connection by reading status
                     self._seesaw_read(addr, 0x00, 1)
                     self._initialized_sensors.add(addr)
+                    print(f"DEBUG: Sensor at 0x{addr:02x} initialized successfully", flush=True)
                     logger.info(f"Initialized STEMMA sensor at 0x{addr:02x}")
                 except Exception as e:
+                    print(f"DEBUG: Failed to initialize sensor at 0x{addr:02x}: {e}", flush=True)
                     logger.warning(f"Failed to initialize sensor at 0x{addr:02x}: {e}")
         except Exception as e:
+            print(f"DEBUG: Failed to initialize I2C bus: {e}", flush=True)
             logger.error(f"Failed to initialize I2C bus: {e}")
 
     def _seesaw_read(self, addr: int, register: int, length: int) -> bytes:
