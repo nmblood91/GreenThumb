@@ -184,10 +184,42 @@ HE0 "GND" ──────→ 12V Busbar GND
 - HE0 12/24V pin → 12V Busbar (fused)
 - HE0 GND pin → Busbar GND
 
-**Add a flyback diode across the pump terminals** (1N5822 or similar, cathode to
-the positive side). HE0's mosfet is designed for a heater cartridge, which is
-purely resistive. A pump is an inductive motor, and the voltage spike when it
-switches off can destroy the mosfet.
+### Flyback diode (required)
+
+HE0's mosfet is designed for a heater cartridge, which is purely resistive. A
+pump is an inductive motor: when the mosfet switches off, the collapsing field
+drives the negative terminal above +12V, and that spike can destroy the mosfet.
+A flyback diode gives the current a loop through the motor winding instead.
+
+Fit it **across the pump's own two terminals**, in parallel with the motor — not
+inline with a wire, and not at the board end.
+
+```
+   +12V  (fused, from busbar)
+     │
+     ├──────────────────┐
+     │                  │
+  Pump (+)         ═══╪◀═══   diode, STRIPED end toward +12V
+     │                  │
+  [ MOTOR ]             │
+     │                  │
+  Pump (−)              │
+     │                  │
+     ├──────────────────┘
+     │
+   HE0 PC8  (mosfet switches this to ground)
+```
+
+**Striped end (cathode) to the positive terminal.** Orientation is not optional:
+reversed, the diode sits forward-biased across 12V as a dead short and blows the
+2A pump fuse the moment you power up.
+
+Solder it to the pump terminals and heat-shrink each leg, or solder across the
+leads close to the pump. Wire between the diode and the motor is unprotected
+inductance, so keep it short.
+
+Part: **1N5822** (3A Schottky) suits a ~1.5A pump. SB560 also works. A 1N4007
+survives but switches slower and clamps the spike less cleanly.
 
 The pump is declared in `printer.cfg` as an `[output_pin]`, not a heater:
 
