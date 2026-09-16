@@ -37,7 +37,11 @@ class GreenThumbAutomation:
             raw_wet=settings.moisture_raw_wet,
         )
         self.klipper = klipper_client or KlipperClient(socket_path=settings.klipper_host)
-        self.pump = pump or PumpController(pin=settings.pump_pin)
+        self.pump = pump or PumpController(
+            self.klipper,
+            pin_name=settings.pump_pin_name,
+            flow_ml_per_second=settings.pump_flow_ml_per_second,
+        )
         self.leds = leds or LedController(led_count=settings.led_count)
 
         # The gantry, the pump, and the I2C bus all tolerate exactly one user at

@@ -90,8 +90,14 @@ path: ~/printer_data/gcodes
 [display_status]
 [respond]
 
+# Pump on the HE0 MOSFET, switching whatever the board is fed (12V here).
+# Deliberately not a [heater_generic]: that requires a temperature sensor, and
+# verify_heater would fault mid-dose when commanded heat produces no rise.
+# shutdown_value stops the pump if Klipper errors out partway through watering.
 [output_pin pump]
-pin: PA8
+pin: PC8
+value: 0
+shutdown_value: 0
 
 [gcode_macro HOME_GANTRY]
 description: Home the gantry on the X axis

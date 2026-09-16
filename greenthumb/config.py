@@ -7,7 +7,12 @@ class Settings(BaseSettings):
     api_prefix: str = "/api/v1"
     klipper_host: str = "/run/klipper/uds"
     moisture_sensor_addresses: str = "54,55,56,57"
-    pump_pin: int = 17
+    # Name of the [output_pin] section in printer.cfg, not a GPIO number: the
+    # pump hangs off the SKR's HE0 MOSFET and is switched by Klipper.
+    pump_pin_name: str = "pump"
+    # Measure this against a real dose. It converts millilitres into a run time,
+    # so an error here scales every watering by the same factor.
+    pump_flow_ml_per_second: float = 2.5
     led_count: int = 60
     gantry_rail_length_mm: float = 1000.0
     gantry_position_margin_mm: float = 20.0

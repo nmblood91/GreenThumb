@@ -35,19 +35,19 @@ class KlipperClient:
         }
 
     def home_gantry(self) -> dict[str, Any]:
-        return self._send_gcode("G28 X", timeout=MOTION_TIMEOUT)
+        return self.send_gcode("G28 X", timeout=MOTION_TIMEOUT)
 
     def home_axis(self, axis: str) -> dict[str, Any]:
         letter = axis.strip().upper()
         if letter not in {"X", "Y", "Z"}:
             return {"ok": False, "error": f"Unknown axis: {axis}"}
-        return self._send_gcode(f"G28 {letter}", timeout=MOTION_TIMEOUT)
+        return self.send_gcode(f"G28 {letter}", timeout=MOTION_TIMEOUT)
 
     def move_gantry_relative(self, distance_mm: float) -> dict[str, Any]:
-        return self._send_gcode(f"G91\nG1 X{distance_mm} F6000\nG90", timeout=MOTION_TIMEOUT)
+        return self.send_gcode(f"G91\nG1 X{distance_mm} F6000\nG90", timeout=MOTION_TIMEOUT)
 
     def move_gantry_absolute(self, position_mm: float) -> dict[str, Any]:
-        return self._send_gcode(f"G90\nG1 X{position_mm} F6000", timeout=MOTION_TIMEOUT)
+        return self.send_gcode(f"G90\nG1 X{position_mm} F6000", timeout=MOTION_TIMEOUT)
 
     def move_relative(
         self, x_mm: float = 0.0, y_mm: float = 0.0, z_mm: float = 0.0
@@ -59,9 +59,9 @@ class KlipperClient:
         )
         if not axes:
             return {"ok": True, "result": {}}
-        return self._send_gcode(f"G91\nG1{axes} F6000\nG90", timeout=MOTION_TIMEOUT)
+        return self.send_gcode(f"G91\nG1{axes} F6000\nG90", timeout=MOTION_TIMEOUT)
 
-    def _send_gcode(self, gcode: str, timeout: float = QUERY_TIMEOUT) -> dict[str, Any]:
+    def send_gcode(self, gcode: str, timeout: float = QUERY_TIMEOUT) -> dict[str, Any]:
         logger.debug("Sending gcode: %r", gcode)
         return self._send_command("gcode/script", {"script": gcode}, timeout=timeout)
 
