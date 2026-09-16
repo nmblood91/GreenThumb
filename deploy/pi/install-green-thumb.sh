@@ -88,8 +88,16 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 cd /opt/greenthumb/frontend
+# install rather than ci: the committed lockfile is generated on Windows and
+# lacks the ARM Rollup binary, which ci would faithfully omit and then fail to
+# build. install resolves the right platform package.
 npm install
 npm run build
+
+# That resolution rewrites package-lock.json, which leaves the checkout dirty
+# and makes the next git pull refuse to fast-forward. The churn is per-platform
+# and regenerated every install, so drop it.
+sudo -u pi git -C /opt/greenthumb checkout -- frontend/package-lock.json
 
 # Install Klipper host software (last, to avoid blocking on large clone)
 echo "Installing Klipper host software..."
