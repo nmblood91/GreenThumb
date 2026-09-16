@@ -13,6 +13,23 @@ class Settings(BaseSettings):
     gantry_position_margin_mm: float = 20.0
     debug: bool = False
 
+    # Control loop
+    sensor_poll_seconds: int = 60
+    # Watering decisions use the mean of this many polls, so at a 60s interval
+    # the loop acts on a 10 minute trend rather than a single noisy reading.
+    moisture_window_size: int = 10
+
+    # Shared calibration for all probes. Raw capacitance, not per sensor: the
+    # spread between probes is far smaller than the margin a watering decision
+    # needs. Wet is the reading in plain water, which soil never quite reaches.
+    moisture_raw_dry: int = 350
+    moisture_raw_wet: int = 1016
+
+    # Off by default: the pump driver is still a stub, and an unattended pump
+    # is the one failure here that can drown a plant or run itself dry.
+    auto_watering_enabled: bool = False
+    watering_cooldown_minutes: int = 30
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

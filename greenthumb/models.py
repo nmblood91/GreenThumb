@@ -26,6 +26,7 @@ class ZoneSpec:
 class SensorSample:
     sensor_address: int
     moisture_percent: float
+    moisture_raw: float = -1.0
     temperature_c: float | None = None
     timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat(timespec="seconds"))
 

@@ -1,20 +1,46 @@
 from __future__ import annotations
 
-from datetime import time
+from contextlib import asynccontextmanager
+from datetime import datetime, time
+from typing import AsyncIterator
+
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import Body, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from greenthumb.config import settings
 from greenthumb.logging_setup import log_event, read_recent_logs, setup_logging
-from greenthumb.services.automation import GreenThumbAutomation
+from greenthumb.services.automation import GreenThumbAutomation, HardwareBusyError
 
 setup_logging()
+
+automation = GreenThumbAutomation()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(
+        automation.tick,
+        "interval",
+        seconds=settings.sensor_poll_seconds,
+        next_run_time=datetime.now(),
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.start()
+    try:
+        yield
+    finally:
+        scheduler.shutdown(wait=False)
+
 
 app = FastAPI(
     title=settings.app_name,
     description="Smart planter automation platform for the GreenThumb hardware stack.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -25,12 +51,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-automation = GreenThumbAutomation()
-
-
 @app.exception_handler(ValueError)
 async def handle_value_error(request: Request, exc: ValueError) -> JSONResponse:
     return JSONResponse(status_code=400, content={"ok": False, "error": str(exc)})
+
+
+@app.exception_handler(HardwareBusyError)
+async def handle_hardware_busy(request: Request, exc: HardwareBusyError) -> JSONResponse:
+    return JSONResponse(status_code=409, content={"ok": False, "error": str(exc)})
 
 
 def log_motion(result: dict[str, object], action: str) -> dict[str, object]:
@@ -56,8 +84,10 @@ async def health() -> dict[str, str]:
     return {"status": "ok", "app": settings.app_name}
 
 
+# Endpoints that reach hardware are sync so FastAPI runs them in its threadpool;
+# as coroutines their blocking socket and I2C calls would stall the event loop.
 @app.get(f"{settings.api_prefix}/overview")
-async def get_overview() -> dict[str, object]:
+def get_overview() -> dict[str, object]:
     return automation.get_overview()
 
 
@@ -81,7 +111,7 @@ async def write_log(payload: dict[str, str] = Body(default_factory=dict)) -> dic
 
 
 @app.post(f"{settings.api_prefix}/water/{{zone_id}}")
-async def water_zone(zone_id: str, volume_ml: int = 180) -> dict[str, object]:
+def water_zone(zone_id: str, volume_ml: int = 180) -> dict[str, object]:
     result = automation.water_zone(zone_id, volume_ml)
     log_event(f"Zone {zone_id} watered with {volume_ml} mL")
     return result
@@ -173,17 +203,17 @@ async def set_zone_position(zone_id: str, payload: dict[str, float] = Body(defau
 
 
 @app.post(f"{settings.api_prefix}/zones/{{zone_id}}/move")
-async def move_to_zone(zone_id: str) -> dict[str, object]:
+def move_to_zone(zone_id: str) -> dict[str, object]:
     return log_motion(automation.move_to_zone(zone_id), f"Move gantry to zone {zone_id}")
 
 
 @app.post(f"{settings.api_prefix}/gantry/home")
-async def home_gantry() -> dict[str, object]:
+def home_gantry() -> dict[str, object]:
     return log_motion(automation.home_gantry(), "Home gantry")
 
 
 @app.post(f"{settings.api_prefix}/gantry/move")
-async def move_gantry(payload: dict[str, float] = Body(default_factory=dict)) -> dict[str, object]:
+def move_gantry(payload: dict[str, float] = Body(default_factory=dict)) -> dict[str, object]:
     distance_mm = float(payload.get("distance_mm", 0.0))
     return log_motion(
         automation.move_gantry_relative(distance_mm), f"Move gantry by {distance_mm} mm"
@@ -191,12 +221,12 @@ async def move_gantry(payload: dict[str, float] = Body(default_factory=dict)) ->
 
 
 @app.post(f"{settings.api_prefix}/motion/home/{{axis}}")
-async def home_axis(axis: str) -> dict[str, object]:
+def home_axis(axis: str) -> dict[str, object]:
     return log_motion(automation.home_motion_axis(axis), f"Home axis {axis}")
 
 
 @app.post(f"{settings.api_prefix}/motion/move")
-async def move_axis(payload: dict[str, float] = Body(default_factory=dict)) -> dict[str, object]:
+def move_axis(payload: dict[str, float] = Body(default_factory=dict)) -> dict[str, object]:
     x_mm = float(payload.get("x_mm", 0.0))
     y_mm = float(payload.get("y_mm", 0.0))
     z_mm = float(payload.get("z_mm", 0.0))

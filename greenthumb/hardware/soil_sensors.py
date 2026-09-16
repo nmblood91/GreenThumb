@@ -32,11 +32,28 @@ class SensorReadError(RuntimeError):
     """Raised when the sensing stack is unavailable."""
 
 
+def unavailable_sample(address: int) -> SensorSample:
+    """Reading for a sensor that is absent or failed; -1 never looks like real data."""
+    return SensorSample(
+        sensor_address=address,
+        moisture_percent=-1.0,
+        moisture_raw=-1.0,
+        temperature_c=-1.0,
+    )
+
+
 class SoilSensorHub:
     """Reads Adafruit STEMMA soil sensors over I2C using the seesaw protocol."""
 
-    def __init__(self, addresses: list[int] | None = None) -> None:
+    def __init__(
+        self,
+        addresses: list[int] | None = None,
+        raw_dry: int = 350,
+        raw_wet: int = 1016,
+    ) -> None:
         self.addresses = addresses or [0x36, 0x37, 0x38, 0x39]
+        self.raw_dry = raw_dry
+        self.raw_wet = raw_wet
         self.bus: smbus2.SMBus | None = None
         self._initialized_sensors: set[int] = set()
 
@@ -106,6 +123,11 @@ class SoilSensorHub:
         raw[0] &= 0x3F  # high bits are status flags, not part of the fixed-point value
         return struct.unpack(">I", bytes(raw))[0] / 65536.0
 
+    def raw_to_percent(self, raw: float) -> float:
+        span = max(self.raw_wet - self.raw_dry, 1)
+        percent = (raw - self.raw_dry) / span * 100.0
+        return round(max(0.0, min(percent, 100.0)), 1)
+
     def read_all(self) -> list[SensorSample]:
         return [self.read_one(address) for address in self.addresses]
 
@@ -113,7 +135,7 @@ class SoilSensorHub:
         # Sensors get plugged in after startup, so re-probe addresses that have
         # not answered yet instead of writing them off until the next restart.
         if address not in self._initialized_sensors and not self._try_initialize(address):
-            return SensorSample(sensor_address=address, moisture_percent=-1.0, temperature_c=-1.0)
+            return unavailable_sample(address)
 
         try:
             moisture = self._read_moisture(address)
@@ -123,12 +145,13 @@ class SoilSensorHub:
             # Forget it so the next poll re-probes; a reset often recovers a
             # sensor that dropped off, and this covers unplug/replug too.
             self._initialized_sensors.discard(address)
-            return SensorSample(sensor_address=address, moisture_percent=-1.0, temperature_c=-1.0)
+            return unavailable_sample(address)
 
         logger.debug("0x%02x moisture=%d temp=%.1fC", address, moisture, temperature)
         return SensorSample(
             sensor_address=address,
-            moisture_percent=float(moisture),
+            moisture_percent=self.raw_to_percent(moisture),
+            moisture_raw=float(moisture),
             temperature_c=round(temperature, 1),
         )
 
@@ -145,6 +168,6 @@ if __name__ == "__main__":
     hub = SoilSensorHub()
     for sample in hub.read_all():
         print(
-            f"0x{sample.sensor_address:02x}  moisture={sample.moisture_percent:.0f}  "
-            f"temp={sample.temperature_c}C"
+            f"0x{sample.sensor_address:02x}  raw={sample.moisture_raw:.0f}  "
+            f"moisture={sample.moisture_percent}%  temp={sample.temperature_c}C"
         )
