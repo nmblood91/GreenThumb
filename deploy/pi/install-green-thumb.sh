@@ -3,6 +3,10 @@ set -euo pipefail
 
 echo "Installing GreenThumb on the Pi..."
 
+# Enable I2C interface for sensor communication
+echo "Enabling I2C interface..."
+sudo raspi-config nonint do_i2c 0
+
 sudo apt update
 sudo apt install -y git python3-venv python3-pip nginx curl
 
