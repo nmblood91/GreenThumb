@@ -67,6 +67,13 @@ sudo mkdir -p /opt/greenthumb/logs
 # The installer runs as root, so without this the checkout is root-owned and
 # pi cannot pull updates or run the helper scripts.
 sudo chown -R pi:pi /opt/greenthumb
+
+# Create .env from template if it doesn't exist
+if [ ! -f /opt/greenthumb/.env ]; then
+  cp /opt/greenthumb/.env.example /opt/greenthumb/.env
+  echo "✓ Created .env from template"
+fi
+
 python3 -m venv .venv
 . .venv/bin/activate
 pip install --upgrade pip
