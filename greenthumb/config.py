@@ -10,9 +10,11 @@ class Settings(BaseSettings):
     # Name of the [output_pin] section in printer.cfg, not a GPIO number: the
     # pump hangs off the SKR's HE0 MOSFET and is switched by Klipper.
     pump_pin_name: str = "pump"
-    # Measure this against a real dose. It converts millilitres into a run time,
-    # so an error here scales every watering by the same factor.
-    pump_flow_ml_per_second: float = 2.5
+    # 100 mL/min rated, and that rating assumes no head pressure. Real delivery
+    # through lift and tubing runs lower, so measure against a real dose: this
+    # converts millilitres into a run time, and an error here scales every
+    # watering by the same factor while still reporting success.
+    pump_flow_ml_per_second: float = 1.67
     # Addressable pixels, not physical LEDs. A 12V WS2811 strip drives three
     # LEDs per controller, so a 60-LED strip addresses 20 pixels.
     led_count: int = 20

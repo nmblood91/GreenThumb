@@ -171,7 +171,7 @@ The peristaltic pump is controlled via the SKR's **HE0 (heater) connector** on t
 ```
 12V Busbar (+)
     ├→ [5A Main Fuse] → SKR Main Power Input
-    └→ [2A Pump Fuse] → HE0 "12/24V" pin
+    └→ [1A Pump Fuse] → HE0 "12/24V" pin
 
 Pump (+) ───────→ 12V Busbar (+)
 Pump (-) ───────→ HE0 "PC8" pin
@@ -212,14 +212,16 @@ inline with a wire, and not at the board end.
 
 **Striped end (cathode) to the positive terminal.** Orientation is not optional:
 reversed, the diode sits forward-biased across 12V as a dead short and blows the
-2A pump fuse the moment you power up.
+1A pump fuse the moment you power up.
 
 Solder it to the pump terminals and heat-shrink each leg, or solder across the
 leads close to the pump. Wire between the diode and the motor is unprotected
 inductance, so keep it short.
 
-Part: **1N5822** (3A Schottky) suits a ~1.5A pump. SB560 also works. A 1N4007
-survives but switches slower and clamps the spike less cleanly.
+Part: a **1N5822** (3A Schottky) is comfortable overkill for a 0.2-0.3A pump and
+costs the same as anything smaller, so it is the easy choice. A 1N5817 or 1N4001
+is electrically adequate here too. Schottky parts switch faster and clamp the
+spike more cleanly than a 1N400x.
 
 The pump is declared in `printer.cfg` as an `[output_pin]`, not a heater:
 

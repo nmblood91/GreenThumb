@@ -19,7 +19,7 @@ class PumpController:
         self,
         klipper: KlipperClient,
         pin_name: str = "pump",
-        flow_ml_per_second: float = 2.5,
+        flow_ml_per_second: float = 1.67,
     ) -> None:
         self.klipper = klipper
         self.pin_name = pin_name

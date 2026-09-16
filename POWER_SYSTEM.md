@@ -12,17 +12,17 @@ GreenThumb uses a 12V primary bus with a DC-DC converter for 5V logic. All compo
 - **Type:** Standard barrel jack or XT60 connector
 
 **Why 5A minimum?**
-- Pump: ~1.5A
+- Pump (12V peristaltic, 100 mL/min): 0.2-0.3A
 - LED strip (60 LEDs, 12V WS2811): ~1.2A @ full white
 - SKR + Pi + sensors: ~0.5-1A
-- Total peak: ~40W, leaving useful headroom on a 60W supply
+- Total peak: ~25W, so 5A (60W) is generous headroom rather than a floor
 
 ## Busbar Setup
 
 ```
 12V Charger
     └─→ [5A Inline Fuse Holder] ─→ Busbar
-                                      ├─→ [2A Inline Fuse Holder] ─→ 12V Peristaltic Pump
+                                      ├─→ [1A Inline Fuse Holder] ─→ 12V Peristaltic Pump
                                       ├─→ 12V-to-5V DC-DC Converter (3A output) ─→ Raspberry Pi
                                       └─→ BTT SKR Mini E3 V2 Board
 ```
@@ -38,9 +38,15 @@ GreenThumb uses a 12V primary bus with a DC-DC converter for 5V logic. All compo
 ### Pump Circuit Protection
 - **Location:** Busbar → Pump positive wire
 - **Type:** Fast-blow glass fuse
-- **Rating:** 2A
+- **Rating:** 1A
 - **Purpose:** Protects pump circuit; allows pump failure without killing entire system
 - **Optional but recommended:** Provides granular protection and easier troubleshooting
+
+**Why 1A and not 2A.** The pump draws 0.2-0.3A running. A 2A fuse would let a
+fault pull nearly 2A indefinitely without ever blowing, which is barely
+protection at all. 1A sits above the stall current of a motor this small — so a
+jammed pump trips it, which is the point — while leaving room for start-up
+inrush. Size a pump fuse against the pump, not against the supply.
 
 ## Power Budget
 
@@ -51,9 +57,9 @@ GreenThumb uses a 12V primary bus with a DC-DC converter for 5V logic. All compo
 | Pi Camera | 5V | 0.1A | 0.5W |
 | Soil Moisture Sensors (4x) | 3.3V | 0.05A | 0.15W |
 | Addressable LEDs (60x WS2811, 12V) | 12V | ~1.2A (peak full white) | ~14W |
-| Peristaltic Pump (12V) | 12V | 1.5A (typical) | 18W |
-| **Total Peak** | — | **~3.5A @ 12V** | **~42W** |
-| **Typical Operation** | — | **~1-2A @ 12V** | **~12-24W** |
+| Peristaltic Pump (12V, 100 mL/min) | 12V | 0.2-0.3A | ~3.6W |
+| **Total Peak** | — | **~2.1A @ 12V** | **~25W** |
+| **Typical Operation** | — | **~1A @ 12V** | **~12W** |
 
 **Notes:**
 - LEDs typically don't run at full brightness; realistic average is 20-30% brightness
@@ -110,7 +116,7 @@ pixels, not the number of LEDs you can count.
 | Symptom | Likely Cause | Fix |
 |---------|--------------|-----|
 | Pi won't boot / reboots randomly | Low 5V voltage | Check DC-DC input/output; may need heatsink |
-| Pump doesn't run | Blown 2A fuse | Check for shorts in pump wiring |
+| Pump doesn't run | Blown 1A fuse | Check for shorts in pump wiring |
 | LEDs flicker or dim | Voltage sag under LED draw | Upgrade charger or add capacitor |
 | LEDs do nothing at all | Pi and strip grounds not tied together | Run a ground wire from a Pi GND pin to the busbar ground |
 | LEDs flicker or show junk on the first pixels | 3.3V data is marginal for WS2811 | Add a 74AHCT125 level shifter on the data line |
