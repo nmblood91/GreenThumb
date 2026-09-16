@@ -290,6 +290,9 @@ class GreenThumbAutomation:
             "color": result["color"],
         }
 
+    def set_light_color_order(self, order: str) -> dict[str, object]:
+        return self.leds.set_color_order(order)
+
     def set_light_brightness(self, brightness: int) -> dict[str, object]:
         result = self.leds.set_brightness(brightness)
         return {

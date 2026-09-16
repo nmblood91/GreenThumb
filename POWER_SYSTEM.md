@@ -13,9 +13,9 @@ GreenThumb uses a 12V primary bus with a DC-DC converter for 5V logic. All compo
 
 **Why 5A minimum?**
 - Pump: ~1.5A
-- LED strip (60 LEDs): up to 3.6A @ full brightness
+- LED strip (60 LEDs, 12V WS2811): ~1.2A @ full white
 - SKR + Pi + sensors: ~0.5-1A
-- Total peak: ~50-60W
+- Total peak: ~40W, leaving useful headroom on a 60W supply
 
 ## Busbar Setup
 
@@ -50,15 +50,26 @@ GreenThumb uses a 12V primary bus with a DC-DC converter for 5V logic. All compo
 | Raspberry Pi 4 | 5V | 0.6A | 3W |
 | Pi Camera | 5V | 0.1A | 0.5W |
 | Soil Moisture Sensors (4x) | 3.3V | 0.05A | 0.15W |
-| Addressable LEDs (60x WS2812B) | 12V | 3.6A (peak full white) | 43.2W |
+| Addressable LEDs (60x WS2811, 12V) | 12V | ~1.2A (peak full white) | ~14W |
 | Peristaltic Pump (12V) | 12V | 1.5A (typical) | 18W |
-| **Total Peak** | — | **~6A @ 12V** | **~60W** |
-| **Typical Operation** | — | **~2-3A @ 12V** | **~24-36W** |
+| **Total Peak** | — | **~3.5A @ 12V** | **~42W** |
+| **Typical Operation** | — | **~1-2A @ 12V** | **~12-24W** |
 
 **Notes:**
 - LEDs typically don't run at full brightness; realistic average is 20-30% brightness
 - Pump runs in short bursts; not continuous
 - Peak draw occurs if everything runs simultaneously (rare)
+
+**Why the LED figure is lower than 5V strips:**
+
+A 12V WS2811 strip wires the LEDs in groups of three in series, so one
+controller IC and one current path light three LEDs instead of one. Sixty LEDs
+is twenty groups drawing roughly 60 mA each, about 1.2A total — a third of the
+~3.6A the same LED count would pull on a 5V WS2812B strip.
+
+This also means **the strip addresses 20 pixels, not 60.** The three LEDs in a
+group always show the same colour. Set `LED_COUNT` to the number of addressable
+pixels, not the number of LEDs you can count.
 
 ## DC-DC Converter Specifications
 
@@ -101,6 +112,9 @@ GreenThumb uses a 12V primary bus with a DC-DC converter for 5V logic. All compo
 | Pi won't boot / reboots randomly | Low 5V voltage | Check DC-DC input/output; may need heatsink |
 | Pump doesn't run | Blown 2A fuse | Check for shorts in pump wiring |
 | LEDs flicker or dim | Voltage sag under LED draw | Upgrade charger or add capacitor |
+| LEDs do nothing at all | Pi and strip grounds not tied together | Run a ground wire from a Pi GND pin to the busbar ground |
+| LEDs flicker or show junk on the first pixels | 3.3V data is marginal for WS2811 | Add a 74AHCT125 level shifter on the data line |
+| Red and green are swapped | Strip uses a different channel order | Change LED colour order in the settings page |
 | Charger warm/hot | Overload or internal short | Reduce load; check for shorts; consider larger PSU |
 | Fuses blow immediately | Direct short somewhere | Inspect all wiring for damage before replacing |
 

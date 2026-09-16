@@ -119,13 +119,6 @@ def water_zone(zone_id: str, volume_ml: int = 180) -> dict[str, object]:
     return result
 
 
-@app.post(f"{settings.api_prefix}/lights/{{mode}}")
-async def set_light_mode(mode: str) -> dict[str, object]:
-    result = automation.set_light_mode(mode)
-    log_event(f"LED mode changed to {mode}")
-    return result
-
-
 @app.post(f"{settings.api_prefix}/lights/mode")
 async def set_light_mode_from_body(payload: dict[str, str] = Body(default_factory=dict)) -> dict[str, object]:
     mode = str(payload.get("mode", "schedule")).strip().lower()
@@ -145,11 +138,28 @@ async def set_light_color(payload: dict[str, int] = Body(default_factory=dict)) 
     return result
 
 
+@app.post(f"{settings.api_prefix}/lights/color-order")
+async def set_light_color_order(payload: dict[str, str] = Body(default_factory=dict)) -> dict[str, object]:
+    order = str(payload.get("color_order", "RGB"))
+    result = automation.set_light_color_order(order)
+    log_event(f"LED color order set to {result['color_order']}")
+    return result
+
+
 @app.post(f"{settings.api_prefix}/lights/brightness")
 async def set_light_brightness(payload: dict[str, int] = Body(default_factory=dict)) -> dict[str, object]:
     brightness = int(payload.get("brightness", 75))
     result = automation.set_light_brightness(brightness)
     log_event(f"LED brightness set to {result['brightness']}%")
+    return result
+
+
+# Declared last: a path parameter here matches anything, so it would otherwise
+# swallow /lights/mode, /lights/color, /lights/color-order and /lights/brightness.
+@app.post(f"{settings.api_prefix}/lights/{{mode}}")
+async def set_light_mode(mode: str) -> dict[str, object]:
+    result = automation.set_light_mode(mode)
+    log_event(f"LED mode changed to {mode}")
     return result
 
 

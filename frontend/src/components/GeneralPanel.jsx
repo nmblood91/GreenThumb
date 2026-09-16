@@ -25,27 +25,41 @@ const parseHexColor = (hex) => {
   }
 }
 
+const UI_MODE_BY_BACKEND = {
+  schedule: 'schedule',
+  manual: 'on',
+  rainbow: 'rainbow',
+  off: 'off',
+}
+
+const DEFAULT_COLOR_ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR']
+
 export function GeneralPanel({ overview, zones, cameraStatus }) {
   const [settings, setSettings] = useState({
     ledMode: 'schedule',
     brightness: 75,
     color: '#00ff80',
+    colorOrder: 'RGB',
     deviceName: 'GreenThumb',
     cameraEnabled: true,
     defaultWateringVolume: 180,
-    ledCount: 60,
+    ledCount: 20,
   })
+
+  const lighting = overview?.lighting
+  const colorOrderOptions = lighting?.color_order_options ?? DEFAULT_COLOR_ORDERS
 
   useEffect(() => {
     setSettings((current) => ({
       ...current,
-      ledMode: overview?.led_mode || current.ledMode,
-      brightness: overview?.brightness ?? current.brightness,
-      color: toHexColor(overview?.color || current.color),
+      ledMode: UI_MODE_BY_BACKEND[lighting?.mode] ?? current.ledMode,
+      brightness: lighting?.brightness ?? current.brightness,
+      color: toHexColor(lighting?.color || current.color),
+      colorOrder: lighting?.color_order ?? current.colorOrder,
+      ledCount: lighting?.led_count ?? current.ledCount,
       deviceName: overview?.device_name || current.deviceName,
       cameraEnabled: overview?.camera_enabled ?? current.cameraEnabled,
       defaultWateringVolume: overview?.default_watering_volume_ml ?? current.defaultWateringVolume,
-      ledCount: overview?.led_count ?? current.ledCount,
     }))
   }, [overview])
 
@@ -70,6 +84,12 @@ export function GeneralPanel({ overview, zones, cameraStatus }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brightness: Number(settings.brightness) }),
+      })
+
+      await fetch(`${API_BASE}/lights/color-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ color_order: settings.colorOrder }),
       })
 
       if (settings.ledMode === 'on') {
@@ -151,6 +171,33 @@ export function GeneralPanel({ overview, zones, cameraStatus }) {
             />
           </label>
         </div>
+
+        <div className="field-row">
+          <label>
+            LED colour order
+            <select
+              value={settings.colorOrder}
+              onChange={(event) =>
+                setSettings((current) => ({ ...current, colorOrder: event.target.value }))
+              }
+            >
+              {colorOrderOptions.map((order) => (
+                <option key={order} value={order}>
+                  {order}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="field-hint">
+            If red and green look swapped on the strip, try a different order.
+          </p>
+        </div>
+
+        {lighting && lighting.connected === false && (
+          <p className="field-hint warning">
+            LED strip not connected{lighting.error ? `: ${lighting.error}` : ''}
+          </p>
+        )}
 
         <div className="field-row">
           <label className="checkbox-row">

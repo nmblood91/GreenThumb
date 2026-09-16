@@ -500,6 +500,16 @@ option {
   display: block;
 }
 
+.field-hint {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: #8fae9c;
+}
+
+.field-hint.warning {
+  color: #e6a04a;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;

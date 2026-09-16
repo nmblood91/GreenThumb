@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 Mode = Literal["off", "schedule", "manual", "rainbow"]
 VALID_MODES = {"off", "schedule", "manual", "rainbow"}
+VALID_COLOR_ORDERS = ("RGB", "RBG", "GRB", "GBR", "BRG", "BGR")
 
 FRAME_INTERVAL = 1 / 30
 IDLE_INTERVAL = 0.5
@@ -138,6 +139,17 @@ class LedController:
         self._wake.set()
         return {"status": "ok", "brightness": self.brightness}
 
+    def set_color_order(self, order: str) -> dict[str, object]:
+        normalised = str(order).strip().upper()
+        if normalised not in VALID_COLOR_ORDERS:
+            raise ValueError(f"Unsupported LED color order: {order}")
+        self.strip.color_order = normalised
+        # Only the wire encoding changes, not the pixel values, so the
+        # unchanged-frame check would otherwise skip sending the new order.
+        self._last_frame = None
+        self._wake.set()
+        return {"status": "ok", "color_order": normalised}
+
     def rainbow_cycle(self) -> dict[str, str]:
         return self.set_mode("rainbow")
 
@@ -147,6 +159,8 @@ class LedController:
             "color": self.color,
             "brightness": self.brightness,
             "led_count": self.led_count,
+            "color_order": self.strip.color_order,
+            "color_order_options": list(VALID_COLOR_ORDERS),
             "connected": self.strip.available,
             "error": self.strip.error,
         }
