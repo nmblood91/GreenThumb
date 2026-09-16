@@ -59,10 +59,22 @@ class SoilSensorHub:
 
     def _seesaw_analog_read(self, addr: int, channel: int) -> int:
         """Read analog value from channel (0=moisture, 1=temperature)."""
-        # ANALOG register is 0x0F, followed by channel number
-        data = self._seesaw_read(addr, 0x0F, 2)
-        # Convert 2-byte response to 16-bit unsigned int (big-endian)
-        return struct.unpack(">H", data)[0]
+        if not self.bus:
+            raise RuntimeError("I2C bus not initialized")
+        try:
+            # Seesaw analog read: write 0x0F (register) then channel, read 2 bytes
+            write = smbus2.i2c_msg.write(addr, [0x0F, channel])
+            self.bus.i2c_rdwr(write)
+            read = smbus2.i2c_msg.read(addr, 2)
+            self.bus.i2c_rdwr(read)
+            data = bytes(read)
+            # Convert 2-byte response to 16-bit unsigned int (big-endian)
+            result = struct.unpack(">H", data)[0]
+            print(f"DEBUG: Channel {channel} raw value: {result} (bytes: {data.hex()})", flush=True)
+            return result
+        except Exception as e:
+            logger.error(f"Error reading analog channel {channel} from 0x{addr:02x}: {e}")
+            raise
 
     def read_all(self) -> list[SensorSample]:
         samples: list[SensorSample] = []
