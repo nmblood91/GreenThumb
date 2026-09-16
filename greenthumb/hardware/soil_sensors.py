@@ -62,15 +62,9 @@ class SoilSensorHub:
         if not self.bus:
             raise RuntimeError("I2C bus not initialized")
         try:
-            # Seesaw analog read: write 0x0F (register) then channel, read 2 bytes
-            write = smbus2.i2c_msg.write(addr, [0x0F, channel])
-            self.bus.i2c_rdwr(write)
-            read = smbus2.i2c_msg.read(addr, 2)
-            self.bus.i2c_rdwr(read)
-            data = bytes(read)
-            # Convert 2-byte response to 16-bit unsigned int (big-endian)
-            result = struct.unpack(">H", data)[0]
-            print(f"DEBUG: Channel {channel} raw value: {result} (bytes: {data.hex()})", flush=True)
+            # Try simple read_word_data for the channel
+            result = self.bus.read_word_data(addr, channel)
+            print(f"DEBUG: Channel {channel} raw value: {result} (0x{result:04x})", flush=True)
             return result
         except Exception as e:
             logger.error(f"Error reading analog channel {channel} from 0x{addr:02x}: {e}")
