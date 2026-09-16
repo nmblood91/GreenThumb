@@ -36,7 +36,7 @@ class PumpController:
         self.is_running = False
         return result
 
-    def deliver_ml(self, volume_ml: int = 180) -> dict[str, Any]:
+    def deliver_ml(self, volume_ml: int = 100) -> dict[str, Any]:
         duration_seconds = max(volume_ml / self.flow_ml_per_second, 0.1)
         # One script so the dwell and the switch-off are queued together on the
         # MCU; splitting them would let a dropped connection strand the pump on.

@@ -70,10 +70,10 @@ class GreenThumbAutomation:
         self._last_watered: dict[str, datetime] = {}
 
         self.zones = [
-            ZoneSpec(name="Zone 1", zone_id="zone_1", sensor_address=0x36, moisture_target=45, watering_volume_ml=180, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=150),
-            ZoneSpec(name="Zone 2", zone_id="zone_2", sensor_address=0x37, moisture_target=42, watering_volume_ml=170, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=400),
-            ZoneSpec(name="Zone 3", zone_id="zone_3", sensor_address=0x38, moisture_target=48, watering_volume_ml=190, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=650),
-            ZoneSpec(name="Zone 4", zone_id="zone_4", sensor_address=0x39, moisture_target=44, watering_volume_ml=175, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=900),
+            ZoneSpec(name="Zone 1", zone_id="zone_1", sensor_address=0x36, moisture_target=45, watering_volume_ml=100, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=150),
+            ZoneSpec(name="Zone 2", zone_id="zone_2", sensor_address=0x37, moisture_target=42, watering_volume_ml=100, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=400),
+            ZoneSpec(name="Zone 3", zone_id="zone_3", sensor_address=0x38, moisture_target=48, watering_volume_ml=100, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=650),
+            ZoneSpec(name="Zone 4", zone_id="zone_4", sensor_address=0x39, moisture_target=44, watering_volume_ml=100, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=900),
         ]
         self.apply_default_led_ranges()
 

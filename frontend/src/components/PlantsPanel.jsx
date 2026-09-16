@@ -5,7 +5,7 @@ const draftFrom = (zone) => ({
   light_start_time: zone.light_start_time ?? '08:00',
   light_stop_time: zone.light_stop_time ?? '20:00',
   moisture_target: zone.moisture_target ?? 45,
-  watering_volume_ml: zone.watering_volume_ml ?? 180,
+  watering_volume_ml: zone.watering_volume_ml ?? 100,
   position_mm: zone.position_mm ?? 0,
 })
 

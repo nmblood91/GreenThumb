@@ -128,7 +128,7 @@ enables it. Everything described above is what happens *once it's on*.
 
 This is intentional. Automatic watering should be switched on only after the
 pump has been tested by hand and the flow rate has been measured, because the
-planter converts "give this plant 180 mL" into "run the pump for this many
+planter converts "give this plant 100 mL" into "run the pump for this many
 seconds." If it thinks the pump is twice as fast as it really is, every plant
 gets half as much water as intended, forever, and nothing about that looks
 broken from the outside.

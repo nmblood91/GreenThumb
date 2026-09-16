@@ -208,7 +208,7 @@ async def update_moisture_target(zone_id: str, payload: dict[str, float] = Body(
 
 @app.post(f"{settings.api_prefix}/zones/{{zone_id}}/volume")
 async def update_watering_volume(zone_id: str, payload: dict[str, int] = Body(default_factory=dict)) -> dict[str, object]:
-    volume_ml = int(payload.get("watering_volume_ml", 180))
+    volume_ml = int(payload.get("watering_volume_ml", 100))
     result = automation.update_watering_volume(zone_id, volume_ml)
     log_event(f"Zone {zone_id} watering volume set to {result['watering_volume_ml']} mL")
     return result

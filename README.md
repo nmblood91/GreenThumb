@@ -45,7 +45,7 @@ The app exposes a small initial API surface:
 - `GET /health`
 - `GET /api/v1/overview`
 - `GET /api/v1/sensors`
-- `POST /api/v1/water/{zone_id}?volume_ml=180`
+- `POST /api/v1/water/{zone_id}` (optional `?volume_ml=` overrides the zone setting)
 - `POST /api/v1/lights/{mode}`
 - `POST /api/v1/motion/home/{axis}`
 
@@ -114,12 +114,10 @@ reasoning in plain language, for people who won't be reading the code.
 | Soil sensors | Real — I2C via the seesaw protocol, no simulation |
 | Gantry | Real — Klipper over its Unix socket |
 | Pump | Real — Klipper `output_pin` on the SKR's HE0 MOSFET |
-| LEDs | Placeholder — stores state, no driver yet |
+| LEDs | Real — WS2811 over SPI, all four modes including the per-zone schedule |
+| Camera | Not built — the UI controls for it are inert |
 
 Automatic watering is disabled by default (`auto_watering_enabled` in
 `greenthumb/config.py`). Enable it only after testing the pump by hand and
 measuring `pump_flow_ml_per_second` against a real dose, since that figure
 converts a requested volume into a pump run time.
-
-The remaining placeholder is the LED controller; the lighting schedule stored
-per zone is also not yet acted on by the control loop.
