@@ -21,6 +21,13 @@ class HardwareBusyError(RuntimeError):
     """Raised when the gantry, pump, or I2C bus is already in use."""
 
 
+def within_window(now: time, start: time, stop: time) -> bool:
+    if start <= stop:
+        return start <= now < stop
+    # A window that stops before it starts runs overnight, e.g. 20:00 to 06:00.
+    return now >= start or now < stop
+
+
 class GreenThumbAutomation:
     """Application service that coordinates sensors, watering, lighting, and movement."""
 
@@ -42,7 +49,12 @@ class GreenThumbAutomation:
             pin_name=settings.pump_pin_name,
             flow_ml_per_second=settings.pump_flow_ml_per_second,
         )
-        self.leds = leds or LedController(led_count=settings.led_count)
+        self.leds = leds or LedController(
+            led_count=settings.led_count,
+            color_order=settings.led_color_order,
+            spi_bus=settings.led_spi_bus,
+            spi_device=settings.led_spi_device,
+        )
 
         # The gantry, the pump, and the I2C bus all tolerate exactly one user at
         # a time, and a watering cycle holds them for minutes. A single lock for
@@ -136,6 +148,13 @@ class GreenThumbAutomation:
 
     def tick(self) -> None:
         """One pass of the control loop: read every sensor, then water what needs it."""
+        # Lighting first and outside the lock: the strip is on its own SPI bus,
+        # so it should keep following its schedule even while the gantry is busy.
+        try:
+            self._apply_lighting()
+        except Exception:
+            logger.exception("Failed to apply lighting schedule")
+
         try:
             with self._exclusive("Control loop tick"):
                 self._poll_sensors()
@@ -147,6 +166,19 @@ class GreenThumbAutomation:
             # A scheduler job that raises stops being rescheduled, which would
             # silently end all polling.
             logger.exception("Control loop tick failed")
+
+    def _apply_lighting(self) -> None:
+        now = datetime.now().time()
+        self.leds.set_zone_segments(
+            [
+                (
+                    zone.led_start_index,
+                    zone.led_end_index,
+                    within_window(now, zone.light_start_time, zone.light_stop_time),
+                )
+                for zone in self.zones
+            ]
+        )
 
     def _poll_sensors(self) -> None:
         for address in self.sensor_hub.addresses:
@@ -225,6 +257,7 @@ class GreenThumbAutomation:
         return {
             "app": settings.app_name,
             "movement": self.klipper.status(),
+            "lighting": self.leds.status(),
             "zones": [status.__dict__ for status in zone_status],
         }
 

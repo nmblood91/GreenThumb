@@ -30,10 +30,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         coalesce=True,
     )
     scheduler.start()
+    automation.leds.start()
     try:
         yield
     finally:
         scheduler.shutdown(wait=False)
+        automation.leds.stop()
 
 
 app = FastAPI(

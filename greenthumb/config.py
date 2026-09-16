@@ -13,7 +13,13 @@ class Settings(BaseSettings):
     # Measure this against a real dose. It converts millilitres into a run time,
     # so an error here scales every watering by the same factor.
     pump_flow_ml_per_second: float = 2.5
-    led_count: int = 60
+    # Addressable pixels, not physical LEDs. A 12V WS2811 strip drives three
+    # LEDs per controller, so a 60-LED strip addresses 20 pixels.
+    led_count: int = 20
+    # WS2811 is usually RGB where WS2812B is GRB; if red and green swap, fix here.
+    led_color_order: str = "RGB"
+    led_spi_bus: int = 0
+    led_spi_device: int = 0
     gantry_rail_length_mm: float = 1000.0
     gantry_position_margin_mm: float = 20.0
     debug: bool = False

@@ -7,6 +7,10 @@ echo "Installing GreenThumb on the Pi..."
 echo "Enabling I2C interface..."
 sudo raspi-config nonint do_i2c 0
 
+# Enable SPI; the LED strip is clocked out over MOSI (GPIO10, header pin 19)
+echo "Enabling SPI interface..."
+sudo raspi-config nonint do_spi 0
+
 sudo apt update
 sudo apt install -y git python3-venv python3-pip nginx curl
 
