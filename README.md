@@ -100,8 +100,26 @@ This repository is set up to become a real product in stages:
    - onboarding flows, firmware update support, fleet telemetry
    - OTA configuration and remote support tooling
 
-## Notes
+## How watering decisions are made
 
-This current version intentionally uses simulated sensor data and a lightweight abstraction layer so that the project is runnable on a development machine before hardware integration is added on the Pi.
+A background loop polls every sensor once a minute, averages the last ten
+readings per zone, and waters a zone whose average falls below its target.
+[HOW_WATERING_WORKS.md](HOW_WATERING_WORKS.md) explains the rules and the
+reasoning in plain language, for people who won't be reading the code.
 
-The next practical step is to replace the simulated sensor and pump behaviors with actual Raspberry Pi GPIO / I2C drivers and to integrate with the Klipper API for real motion operations.
+## Hardware status
+
+| Component | State |
+|---|---|
+| Soil sensors | Real — I2C via the seesaw protocol, no simulation |
+| Gantry | Real — Klipper over its Unix socket |
+| Pump | Real — Klipper `output_pin` on the SKR's HE0 MOSFET |
+| LEDs | Placeholder — stores state, no driver yet |
+
+Automatic watering is disabled by default (`auto_watering_enabled` in
+`greenthumb/config.py`). Enable it only after testing the pump by hand and
+measuring `pump_flow_ml_per_second` against a real dose, since that figure
+converts a requested volume into a pump run time.
+
+The remaining placeholder is the LED controller; the lighting schedule stored
+per zone is also not yet acted on by the control loop.
