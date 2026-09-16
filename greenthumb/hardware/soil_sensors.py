@@ -6,6 +6,7 @@ import struct
 from greenthumb.models import SensorSample
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
 
 import smbus2
 
@@ -35,12 +36,19 @@ class SoilSensorHub:
         """Read from Seesaw device register via I2C."""
         if not self.bus:
             raise RuntimeError("I2C bus not initialized")
-        # Send register address as single byte, then read response
-        with smbus2.i2c_msg.write(addr, [register]) as write:
-            self.bus.i2c_rdwr(write)
-        with smbus2.i2c_msg.read(addr, length) as read:
-            self.bus.i2c_rdwr(read)
-        return bytes(read)
+        try:
+            logger.debug(f"Reading from 0x{addr:02x} register 0x{register:02x} ({length} bytes)")
+            # Send register address as single byte, then read response
+            with smbus2.i2c_msg.write(addr, [register]) as write:
+                self.bus.i2c_rdwr(write)
+            with smbus2.i2c_msg.read(addr, length) as read:
+                self.bus.i2c_rdwr(read)
+            result = bytes(read)
+            logger.debug(f"Read result: {result.hex()}")
+            return result
+        except Exception as e:
+            logger.error(f"I2C read error from 0x{addr:02x}: {e}", exc_info=True)
+            raise
 
     def _seesaw_analog_read(self, addr: int, channel: int) -> int:
         """Read analog value from channel (0=moisture, 1=temperature)."""
