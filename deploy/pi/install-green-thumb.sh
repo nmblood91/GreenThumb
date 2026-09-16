@@ -8,7 +8,7 @@ sudo apt install -y git python3-venv python3-pip nginx curl
 
 # Install core dependencies
 echo "Installing build dependencies..."
-sudo apt install -y python3-dev libffi-dev build-essential libncurses-dev libusb-dev avrdude gcc-arm-none-eabi binutils-arm-none-eabi
+sudo apt install -y python3-dev libffi-dev build-essential libncurses-dev libusb-dev avrdude gcc-arm-none-eabi binutils-arm-none-eabi swig
 
 # Create printer_data and log directories
 sudo -u pi mkdir -p /home/pi/printer_data/config /home/pi/printer_data/gcodes /home/pi/klipper_logs
