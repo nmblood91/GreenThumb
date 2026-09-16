@@ -20,7 +20,7 @@ class GreenThumbAutomation:
         pump: PumpController | None = None,
         leds: LedController | None = None,
     ) -> None:
-        self.sensor_hub = sensor_hub or SoilSensorHub(addresses=settings.moisture_sensor_addresses)
+        self.sensor_hub = sensor_hub or SoilSensorHub(addresses=settings.moisture_sensor_addresses_list)
         self.klipper = klipper_client or KlipperClient(socket_path=settings.klipper_host)
         self.pump = pump or PumpController(pin=settings.pump_pin)
         self.leds = leds or LedController(led_count=settings.led_count)
