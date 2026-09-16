@@ -11,6 +11,16 @@ sudo raspi-config nonint do_i2c 0
 echo "Enabling SPI interface..."
 sudo raspi-config nonint do_spi 0
 
+# The API runs as pi, so it needs these groups to reach /dev/i2c-1 and
+# /dev/spidev0.0. Raspberry Pi OS usually grants them to the first user, but not
+# to one created later, and the failure looks like a wiring fault.
+sudo usermod -aG i2c,spi,gpio pi
+
+# raspi-config normally applies these live, but on a first boot the device nodes
+# can be absent until the modules load.
+sudo modprobe i2c-dev 2>/dev/null || true
+sudo modprobe spi-bcm2835 2>/dev/null || true
+
 sudo apt update
 sudo apt install -y git python3-venv python3-pip nginx curl
 
@@ -160,6 +170,32 @@ sudo systemctl restart nginx
 
 sudo systemctl status greenthumb-api.service --no-pager
 
+# Verify the buses the hardware actually needs, so a fresh install reports a
+# missing device node here rather than as a silent -1 reading later.
+echo ""
+echo "Verifying hardware interfaces..."
+REBOOT_NEEDED=0
+
+if [ -e /dev/i2c-1 ]; then
+  echo "✓ I2C bus present"
+  echo "  Soil sensors detected at:"
+  sudo i2cdetect -y 1 | awk 'NR>1 {for (i=2; i<=NF; i++) if ($i != "--" && $i != "") printf "    0x%s\n", $i}'
+else
+  echo "⚠️  /dev/i2c-1 missing — soil sensors will not be readable"
+  REBOOT_NEEDED=1
+fi
+
+if [ -e /dev/spidev0.0 ]; then
+  echo "✓ SPI device present (LED strip)"
+else
+  echo "⚠️  /dev/spidev0.0 missing — LED strip will not light"
+  REBOOT_NEEDED=1
+fi
+
 printf "\nGreenThumb install complete.\n"
 printf "Open: http://$(hostname -I | awk '{print $1}')\n"
 printf "API: http://$(hostname -I | awk '{print $1}'):8000\n"
+
+if [ "$REBOOT_NEEDED" -eq 1 ]; then
+  printf "\n⚠️  Reboot required to finish enabling I2C/SPI, then re-run this script.\n"
+fi

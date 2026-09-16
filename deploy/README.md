@@ -42,7 +42,9 @@ For a clean installation with the latest OS, start here:
    - Choose **Raspberry Pi OS (64-bit)**
    - Set hostname: `greenthumb`
    - Enable SSH
-   - Set username/password (default: `pi` / your password)
+   - **Username must be `pi`** — the systemd service, the Klipper paths, and the
+     install script all reference `/home/pi` and run the API as `pi`. Any other
+     username requires editing those in step with each other.
 
 2. **Boot the Pi and wait ~2 minutes** for initial setup to complete.
 
@@ -74,6 +76,16 @@ For a clean installation with the latest OS, start here:
    sudo systemctl status greenthumb-api.service
    sudo systemctl status nginx
    ```
+
+   The install script also prints an interface check at the end. If it reports
+   `/dev/i2c-1` or `/dev/spidev0.0` missing, reboot and re-run it — the script is
+   idempotent and safe to run repeatedly.
+
+   Read the sensors directly, without going through the API:
+   ```bash
+   /opt/greenthumb/.venv/bin/python -m greenthumb.hardware.soil_sensors
+   ```
+   Sensors that are absent or unplugged report `-1` rather than a fake value.
 
 8. **Open the web UI**:
    - Open `http://greenthumb.local` in your browser
@@ -147,9 +159,59 @@ HE0 "GND" ──────→ 12V Busbar GND
 - HE0 12/24V pin → 12V Busbar (fused)
 - HE0 GND pin → Busbar GND
 
-The SKR board's internal mosfet on PC8 switches the pump circuit on/off. Control via Klipper's `SET_HEATER_TEMPERATURE HEATER=pump TARGET=50` (on) / `TARGET=0` (off) from the FastAPI backend.
+**Add a flyback diode across the pump terminals** (1N5822 or similar, cathode to
+the positive side). HE0's mosfet is designed for a heater cartridge, which is
+purely resistive. A pump is an inductive motor, and the voltage spike when it
+switches off can destroy the mosfet.
+
+The pump is declared in `printer.cfg` as an `[output_pin]`, not a heater:
+
+```
+[output_pin pump]
+pin: PC8
+value: 0
+shutdown_value: 0
+```
+
+`shutdown_value: 0` stops the pump if Klipper errors out mid-dose. It is
+deliberately not a `[heater_generic]` — that requires a temperature sensor, and
+Klipper's `verify_heater` watchdog would fault partway through every watering
+when commanded heat produced no temperature rise.
+
+The backend doses with `SET_PIN PIN=pump VALUE=1`, a `G4` dwell, then
+`SET_PIN PIN=pump VALUE=0`, sent as a single script so the switch-off is queued
+on the MCU and a dropped connection cannot strand the pump running.
 
 See [POWER_SYSTEM.md](../POWER_SYSTEM.md) for complete busbar and fusing specifications.
+
+## Wiring the LED Strip
+
+A 12V WS2811 strip, powered from the busbar, with data from the Pi.
+
+```
+12V Busbar (+) ──→ Strip +12V
+12V Busbar GND ──→ Strip GND ──┬── Pi GND (any ground pin)
+Pi GPIO10 (pin 19, MOSI) ──────┴─→ [74AHCT125 level shifter] ──→ Strip DIN
+```
+
+**The data pin must be GPIO10 (header pin 19).** The driver clocks the WS2811
+waveform out of the SPI peripheral, which only exists on that pin. This avoids
+needing root, which the usual PWM/DMA approach requires.
+
+Two things that look like software faults but are not:
+
+- **Pi ground must tie to the busbar ground.** The data line is measured against
+  ground; without a shared reference the strip sees nothing. This is the most
+  common failure.
+- **Use a level shifter.** WS2811 wants logic high at roughly 70% of its supply,
+  and the Pi only swings to 3.3V. Some strips tolerate it; flicker or junk on the
+  first few pixels is this, not a bug.
+
+**Do not power the strip from the Pi.** Sixty LEDs draw about 1.2A at 12V — far
+past what the Pi's rail can supply, and backfeeding 12V into a Pi pin destroys it.
+
+Set `LED_COUNT` to the number of **addressable pixels**, not LEDs. A 12V WS2811
+drives three LEDs per controller, so a 60-LED strip is 20 pixels.
 
 ## Troubleshooting
 
