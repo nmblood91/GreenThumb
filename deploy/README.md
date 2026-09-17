@@ -245,32 +245,45 @@ See [POWER_SYSTEM.md](../POWER_SYSTEM.md) for complete busbar and fusing specifi
 
 ## Wiring the LED Strip
 
-A 12V WS2811 strip, powered from the busbar, with data from the Pi.
+Supported strips, selectable as **LED strip type** in the settings page:
+
+| Chip | Supply | Pixels | Pads | Notes |
+|---|---|---|---|---|
+| WS2812B | 5V | one per LED | 3 | The common 5V strip |
+| WS2815 | 12V | one per LED | 4 | 4th pad is a backup data line |
+| GS8208 | 12V | one per LED | 3 | Often sold as "12V WS2812B" |
+| WS2811 | 12V | one per **3** LEDs | 3 | Set LED count to LEDs / 3 |
+
+They use different bit timing, so picking the wrong one gives no light or
+garbage rather than a subtle colour shift. **To tell 12V strips apart, check the
+cut marks.** Cuttable between every LED means one pixel per LED (WS2815 /
+GS8208); cuttable only every third LED means WS2811.
 
 ```
-12V Busbar (+) ──→ Strip +12V
-12V Busbar GND ──→ Strip GND ──┬── Pi GND (any ground pin)
-Pi GPIO10 (pin 19, MOSI) ──────┴─→ [74AHCT125 level shifter] ──→ Strip DIN
+Supply (+) ----> Strip +V        (5V or 12V, matching the chip)
+Supply GND ----> Strip GND --+-- Pi GND (any ground pin)
+Pi GPIO10 (pin 19, MOSI) ----+-> [74AHCT125 level shifter] --> Strip DIN
 ```
 
-**The data pin must be GPIO10 (header pin 19).** The driver clocks the WS2811
-waveform out of the SPI peripheral, which only exists on that pin. This avoids
-needing root, which the usual PWM/DMA approach requires.
+**The data pin must be GPIO10 (header pin 19).** The driver clocks the waveform
+out of the SPI peripheral, which only exists on that pin. This avoids needing
+root, which the usual PWM/DMA approach requires.
 
 Two things that look like software faults but are not:
 
-- **Pi ground must tie to the busbar ground.** The data line is measured against
-  ground; without a shared reference the strip sees nothing. This is the most
-  common failure.
-- **Use a level shifter.** WS2811 wants logic high at roughly 70% of its supply,
-  and the Pi only swings to 3.3V. Some strips tolerate it; flicker or junk on the
-  first few pixels is this, not a bug.
+- **Pi ground must tie to the supply ground.** The data line is measured against
+  ground; without a shared reference the strip sees nothing. Most common failure.
+- **Use a level shifter.** These chips want logic high at roughly 70% of their
+  supply, and the Pi only swings to 3.3V. Some strips tolerate it; flicker or junk
+  on the first few pixels is this, not a bug.
 
-**Do not power the strip from the Pi.** Sixty LEDs draw about 1.2A at 12V — far
-past what the Pi's rail can supply, and backfeeding 12V into a Pi pin destroys it.
+**Do not power the strip from the Pi.** A 5V WS2812B strip pulls about 3.6A at 60
+LEDs full white, far past the Pi's rail. 12V strips draw roughly a third of that,
+but either way the strip's supply must not touch the Pi's pins.
 
-Set `LED_COUNT` to the number of **addressable pixels**, not LEDs. A 12V WS2811
-drives three LEDs per controller, so a 60-LED strip is 20 pixels.
+If red and green come out swapped, change **LED colour order** in settings.
+Selecting a strip type resets that order to the one that chip normally uses, so
+choose the type first and adjust the order afterwards.
 
 ## Troubleshooting
 
