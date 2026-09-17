@@ -9,10 +9,14 @@ max_accel: 4000
 max_z_velocity: 15
 max_z_accel: 100
 
-# X coordinates: the endstop switch trips at X-20, inside the dead zone at the
-# left end. Usable travel is X0 to X960; the 20 mm at each end of the 1 m rail
-# is unreachable by the carriage. Measure position_endstop against your own
-# switch mounting -- see deploy/README.md.
+# X coordinates: the endstop switch trips at X980, inside the dead zone at the
+# right end, next to the motor. Usable travel is X0 to X960; the 20 mm at each
+# end of the 1 m rail is unreachable by the carriage. Measure position_endstop
+# against your own switch mounting -- see deploy/README.md.
+#
+# Homing at the motor end keeps the belt span between pulley and carriage at its
+# shortest when the switch trips, so the reference is the most repeatable point
+# on the rail.
 [stepper_x]
 step_pin: PB13
 dir_pin: PB12
@@ -20,9 +24,13 @@ enable_pin: !PB14
 microsteps: 16
 rotation_distance: 40
 endstop_pin: ^!PC0
-position_min: -20
-position_max: 960
-position_endstop: -20
+position_min: 0
+position_max: 980
+position_endstop: 980
+# Stated rather than inferred: Klipper would work this out from position_endstop
+# sitting at the top of the range, but then a later edit to position_max could
+# silently reverse the homing direction.
+homing_positive_dir: True
 homing_speed: 40
 second_homing_speed: 10
 homing_retract_dist: 5
@@ -35,13 +43,13 @@ run_current: 0.7
 stealthchop_threshold: 999999
 
 # Park clear of the switch after homing so the first move in either direction
-# is legal; sitting on position_min makes any leftward jog fail.
+# is legal; sitting on position_max makes any rightward jog fail.
 [homing_override]
 axes: x
 gcode:
     G28.1 X
     G90
-    G1 X0 F3000
+    G1 X960 F3000
 
 [force_move]
 enable_force_move: True

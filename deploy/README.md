@@ -130,8 +130,15 @@ X homes against a mechanical switch on the **X-STOP** connector. Sensorless
 output correctly, but that signal is not routed to `PC0`, so the pin reads high
 forever and `G28 X` completes instantly without moving.
 
-Mount the switch inside the dead zone at the **left** end of the rail, so the
-carriage trips it before reaching the mechanical limit.
+Mount the switch inside the dead zone at the **right** end of the rail, next to
+the motor, so the carriage trips it before reaching the mechanical limit.
+
+Homing at the motor end keeps the belt span between the pulley and the carriage
+at its shortest when the switch trips, which makes the reference the most
+repeatable point on the rail. The effect is tens of microns on a 1 m GT2 belt, so
+treat it as a tiebreaker rather than a requirement -- either end works, and the
+switch can move as long as `position_endstop`, `position_max` and the park
+position in `homing_override` move together.
 
 **Wiring** — two pins, no power needed:
 
@@ -151,12 +158,17 @@ Released it must read `stepper_x:open`; held down by hand, `stepper_x:TRIGGERED`
 If those are backwards the switch is wired normally-open — use `^PC0` instead of
 `^!PC0`, rather than rewiring.
 
-**Calibrating `position_endstop`.** X0 is the first usable position, and the
-switch sits behind it at a negative coordinate, so homing can park clear of the
-switch instead of resting on the lower limit. `position_endstop` is how far the
-trigger point is from X0, negated — at `-20`, homing ends 20 mm past the switch.
-Pick the gap you want, then set `position_min` to the same value. Keep
-`position_max` at the travel remaining from X0 to the far dead zone.
+**Calibrating `position_endstop`.** X960 is the last usable position and the
+switch sits past it, so homing can retract clear of the switch instead of resting
+on the upper limit. `position_endstop` is the coordinate at which the switch
+trips — at `980`, it sits 20 mm beyond usable travel. Measure it against your own
+mounting, then set `position_max` to the same value and park 20 mm short of it in
+`homing_override`. X0 stays the left end of usable travel, so zone positions are
+unaffected by which end the switch lives at.
+
+`homing_positive_dir: True` is stated explicitly. Klipper would infer it from
+`position_endstop` sitting at the top of the range, but then a later edit to
+`position_max` could silently reverse which way the carriage homes.
 
 ## Wiring the Pump to SKR Board
 
