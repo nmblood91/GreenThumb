@@ -145,6 +145,14 @@ async def set_light_color_order(payload: dict[str, str] = Body(default_factory=d
     return result
 
 
+@app.post(f"{settings.api_prefix}/lights/chip")
+async def set_light_chip(payload: dict[str, str] = Body(default_factory=dict)) -> dict[str, object]:
+    chip = str(payload.get("chip", "WS2812B"))
+    result = automation.set_light_chip(chip)
+    log_event(f"LED chip set to {result['chip']} ({result['color_order']})")
+    return result
+
+
 @app.post(f"{settings.api_prefix}/lights/brightness")
 async def set_light_brightness(payload: dict[str, int] = Body(default_factory=dict)) -> dict[str, object]:
     brightness = int(payload.get("brightness", 75))

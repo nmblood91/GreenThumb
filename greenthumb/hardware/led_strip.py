@@ -1,39 +1,74 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-# WS2811 wants a 1.25us bit period where a zero holds high ~250ns and a one
-# ~600ns. Clocking SPI at 3.2MHz makes each SPI bit 312ns, so four of them cover
-# one data bit: 1000 is a zero (312ns high) and 1100 a one (625ns high). Four
-# also divides into a byte evenly, so two data bits map onto exactly one SPI
-# byte and there is no bit packing across boundaries.
-SPI_HZ = 3_200_000
 
-_BIT_PAIRS = {0b00: 0x88, 0b01: 0x8C, 0b10: 0xC8, 0b11: 0xCC}
-_ENCODED_BYTES = [
-    bytes(
-        (
-            _BIT_PAIRS[(value >> 6) & 0b11],
-            _BIT_PAIRS[(value >> 4) & 0b11],
-            _BIT_PAIRS[(value >> 2) & 0b11],
-            _BIT_PAIRS[value & 0b11],
-        )
-    )
-    for value in range(256)
-]
-
-# The strip latches on a long low. 42 idle bytes at 3.2MHz is ~105us, clear of
-# the 50us minimum with room for clock jitter.
-RESET = b"\x00" * 42
+@dataclass(frozen=True)
+class ChipSpec:
+    spi_hz: int
+    symbol_bits: int
+    zero: int
+    one: int
+    color_order: str
+    description: str
 
 
-class Ws2811Strip:
-    """Drives a WS2811 strip from the Pi's SPI MOSI line."""
+# These chips share a 1.25us bit period and encode a bit by how long the line
+# stays high, but they disagree on how long. Rather than clock SPI at the bit
+# rate, clock it faster and spend several SPI bits per data bit, choosing a rate
+# where the high time lands mid-tolerance and a whole data byte still maps onto a
+# whole number of SPI bytes.
+CHIPS = {
+    # T0H 400ns, T1H 800ns, both +/-150. At 2.4MHz a SPI bit is 417ns, so 100
+    # holds high 417ns and 110 holds 833ns.
+    "WS2812B": ChipSpec(2_400_000, 3, 0b100, 0b110, "GRB", "5V, one pixel per LED"),
+    # 12V, one pixel per LED, four pads because it carries a backup data line.
+    # T0H 300ns, T1H 900ns: the same 417/833 sits inside both windows.
+    "WS2815": ChipSpec(2_400_000, 3, 0b100, 0b110, "GRB", "12V, one pixel per LED, 4 pads"),
+    # 12V, one pixel per LED, three pads. Often sold as "12V WS2812B".
+    "GS8208": ChipSpec(2_400_000, 3, 0b100, 0b110, "GRB", "12V, one pixel per LED, 3 pads"),
+    # T0H 250ns, T1H 600ns. Needs the faster clock, where a SPI bit is 312ns, so
+    # 1000 holds high 312ns and 1100 holds 625ns. Drives three LEDs per pixel.
+    "WS2811": ChipSpec(3_200_000, 4, 0b1000, 0b1100, "RGB", "12V, three LEDs per pixel"),
+}
 
-    def __init__(self, bus: int = 0, device: int = 0, color_order: str = "RGB") -> None:
-        self.color_order = color_order.upper()
+DEFAULT_CHIP = "WS2812B"
+
+# The strip latches on a long low. Later WS2812B revisions want 280us rather than
+# the original 50us, and idle bytes are nearly free. Sized for the fastest clock
+# here, so it still clears 280us at WS2811's 3.2MHz.
+RESET = b"\x00" * 120
+
+
+def encoding_table(chip: str) -> list[bytes]:
+    """Maps each byte value to the SPI bytes that clock it out as a waveform."""
+    spec = CHIPS[chip]
+    table = []
+    for value in range(256):
+        bits = 0
+        for index in range(8):
+            symbol = spec.one if (value >> (7 - index)) & 1 else spec.zero
+            bits = (bits << spec.symbol_bits) | symbol
+        table.append(bits.to_bytes(spec.symbol_bits, "big"))
+    return table
+
+
+class AddressableStrip:
+    """Drives an addressable LED strip from the Pi's SPI MOSI line."""
+
+    def __init__(
+        self,
+        bus: int = 0,
+        device: int = 0,
+        chip: str = DEFAULT_CHIP,
+        color_order: str | None = None,
+    ) -> None:
+        self.chip = chip if chip in CHIPS else DEFAULT_CHIP
+        self.color_order = (color_order or CHIPS[self.chip].color_order).upper()
+        self._table = encoding_table(self.chip)
         self.spi = None
         self.error: str | None = None
 
@@ -42,11 +77,17 @@ class Ws2811Strip:
 
             self.spi = spidev.SpiDev()
             self.spi.open(bus, device)
-            self.spi.max_speed_hz = SPI_HZ
+            self.spi.max_speed_hz = CHIPS[self.chip].spi_hz
             self.spi.mode = 0
-            logger.info("LED strip ready on SPI %d.%d, order %s", bus, device, self.color_order)
+            logger.info(
+                "LED strip ready on SPI %d.%d, chip %s, order %s",
+                bus,
+                device,
+                self.chip,
+                self.color_order,
+            )
         except Exception as exc:
-            # Left unavailable rather than faked: the API reports the strip as
+            # Left unavailable rather than faked: the API reports the output as
             # offline so a wiring problem is visible instead of silent.
             self.error = str(exc)
             self.spi = None
@@ -56,6 +97,20 @@ class Ws2811Strip:
     def available(self) -> bool:
         return self.spi is not None
 
+    def set_chip(self, chip: str) -> ChipSpec:
+        """Switch chip timing, and adopt that chip's usual channel order with it."""
+        if chip not in CHIPS:
+            raise ValueError(f"Unsupported LED chip: {chip}. Known: {', '.join(CHIPS)}")
+
+        spec = CHIPS[chip]
+        self.chip = chip
+        self._table = encoding_table(chip)
+        self.color_order = spec.color_order
+        if self.spi:
+            self.spi.max_speed_hz = spec.spi_hz
+        logger.info("LED chip set to %s (%s, %s)", chip, spec.description, spec.color_order)
+        return spec
+
     def show(self, pixels: list[tuple[int, int, int]]) -> bool:
         if not self.spi:
             return False
@@ -64,7 +119,7 @@ class Ws2811Strip:
         for red, green, blue in pixels:
             channels = {"R": red, "G": green, "B": blue}
             for name in self.color_order:
-                payload += _ENCODED_BYTES[max(0, min(channels[name], 255))]
+                payload += self._table[max(0, min(channels[name], 255))]
         payload += RESET
 
         try:

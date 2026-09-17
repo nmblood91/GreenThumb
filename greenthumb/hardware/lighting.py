@@ -5,7 +5,7 @@ import threading
 import time
 from typing import Literal
 
-from greenthumb.hardware.led_strip import Ws2811Strip
+from greenthumb.hardware.led_strip import CHIPS, DEFAULT_CHIP, AddressableStrip
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +33,10 @@ class LedController:
 
     def __init__(
         self,
-        led_count: int = 20,
-        strip: Ws2811Strip | None = None,
-        color_order: str = "RGB",
+        led_count: int = 60,
+        strip: AddressableStrip | None = None,
+        chip: str = DEFAULT_CHIP,
+        color_order: str | None = None,
         spi_bus: int = 0,
         spi_device: int = 0,
     ) -> None:
@@ -43,8 +44,8 @@ class LedController:
         self.mode: Mode = "schedule"
         self.color = (0, 255, 128)
         self.brightness = 75
-        self.strip = strip if strip is not None else Ws2811Strip(
-            bus=spi_bus, device=spi_device, color_order=color_order
+        self.strip = strip if strip is not None else AddressableStrip(
+            bus=spi_bus, device=spi_device, chip=chip, color_order=color_order
         )
 
         self._segments: list[tuple[int, int, bool]] = []
@@ -150,12 +151,30 @@ class LedController:
         self._wake.set()
         return {"status": "ok", "color_order": normalised}
 
+    def set_chip(self, chip: str) -> dict[str, object]:
+        spec = self.strip.set_chip(chip)
+        # Timing and channel order both change, and neither alters the pixel
+        # values, so the unchanged-frame check would skip sending the new one.
+        self._last_frame = None
+        self._wake.set()
+        return {
+            "status": "ok",
+            "chip": self.strip.chip,
+            "color_order": self.strip.color_order,
+            "description": spec.description,
+        }
+
     def status(self) -> dict[str, object]:
         return {
             "mode": self.mode,
             "color": self.color,
             "brightness": self.brightness,
             "led_count": self.led_count,
+            "chip": self.strip.chip,
+            "chip_options": [
+                {"name": name, "description": spec.description}
+                for name, spec in CHIPS.items()
+            ],
             "color_order": self.strip.color_order,
             "color_order_options": list(VALID_COLOR_ORDERS),
             # Whether frames can be sent, not whether a strip is listening: the

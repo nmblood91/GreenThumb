@@ -15,11 +15,13 @@ class Settings(BaseSettings):
     # converts millilitres into a run time, and an error here scales every
     # watering by the same factor while still reporting success.
     pump_flow_ml_per_second: float = 1.67
-    # Addressable pixels, not physical LEDs. A 12V WS2811 strip drives three
-    # LEDs per controller, so a 60-LED strip addresses 20 pixels.
-    led_count: int = 20
-    # WS2811 is usually RGB where WS2812B is GRB; if red and green swap, fix here.
-    led_color_order: str = "RGB"
+    # Strip chip: sets the bit timing and the usual channel order. Selectable in
+    # the settings page. WS2812B/WS2815/GS8208 are one pixel per LED; WS2811
+    # drives three LEDs per pixel, so set led_count to LEDs/3 for it.
+    led_chip: str = "WS2812B"
+    led_count: int = 60
+    # Overrides the chip's usual order, for strips wired differently.
+    led_color_order: str = "GRB"
     led_spi_bus: int = 0
     led_spi_device: int = 0
     gantry_rail_length_mm: float = 1000.0

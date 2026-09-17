@@ -51,6 +51,7 @@ class GreenThumbAutomation:
         )
         self.leds = leds or LedController(
             led_count=settings.led_count,
+            chip=settings.led_chip,
             color_order=settings.led_color_order,
             spi_bus=settings.led_spi_bus,
             spi_device=settings.led_spi_device,
@@ -279,6 +280,9 @@ class GreenThumbAutomation:
 
     def set_light_color_order(self, order: str) -> dict[str, object]:
         return self.leds.set_color_order(order)
+
+    def set_light_chip(self, chip: str) -> dict[str, object]:
+        return self.leds.set_chip(chip)
 
     def set_light_brightness(self, brightness: int) -> dict[str, object]:
         result = self.leds.set_brightness(brightness)

@@ -41,12 +41,14 @@ export function GeneralPanel({ overview, cameraStatus }) {
     ledMode: 'schedule',
     brightness: 75,
     color: '#00ff80',
-    colorOrder: 'RGB',
+    chip: 'WS2812B',
+    colorOrder: 'GRB',
     cameraEnabled: true,
   })
 
   const lighting = overview?.lighting
   const colorOrderOptions = lighting?.color_order_options ?? DEFAULT_COLOR_ORDERS
+  const chipOptions = lighting?.chip_options ?? []
 
   useEffect(() => {
     setSettings((current) => ({
@@ -54,6 +56,7 @@ export function GeneralPanel({ overview, cameraStatus }) {
       ledMode: UI_MODE_BY_BACKEND[lighting?.mode] ?? current.ledMode,
       brightness: lighting?.brightness ?? current.brightness,
       color: toHexColor(lighting?.color || current.color),
+      chip: lighting?.chip ?? current.chip,
       colorOrder: lighting?.color_order ?? current.colorOrder,
       cameraEnabled: overview?.camera_enabled ?? current.cameraEnabled,
     }))
@@ -80,6 +83,12 @@ export function GeneralPanel({ overview, cameraStatus }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ brightness: Number(settings.brightness) }),
+      })
+
+      await fetch(`${API_BASE}/lights/chip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chip: settings.chip }),
       })
 
       await fetch(`${API_BASE}/lights/color-order`, {
@@ -153,6 +162,28 @@ export function GeneralPanel({ overview, cameraStatus }) {
             </label>
           </div>
         )}
+
+        <div className="field-row">
+          <label>
+            LED strip type
+            <select
+              value={settings.chip}
+              onChange={(event) =>
+                setSettings((current) => ({ ...current, chip: event.target.value }))
+              }
+            >
+              {chipOptions.map((option) => (
+                <option key={option.name} value={option.name}>
+                  {option.name} ({option.description})
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="field-hint">
+            Sets the signal timing for your strip. WS2811 drives three LEDs per
+            pixel, so set LED count to a third of the LEDs you can see.
+          </p>
+        </div>
 
         <div className="field-row">
           <label>
