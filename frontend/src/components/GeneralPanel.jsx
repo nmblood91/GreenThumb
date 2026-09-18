@@ -49,6 +49,7 @@ export function GeneralPanel({ overview, cameraStatus }) {
   const lighting = overview?.lighting
   const colorOrderOptions = lighting?.color_order_options ?? DEFAULT_COLOR_ORDERS
   const chipOptions = lighting?.chip_options ?? []
+  const waterSupply = overview?.water_supply
 
   useEffect(() => {
     setSettings((current) => ({
@@ -210,6 +211,14 @@ export function GeneralPanel({ overview, cameraStatus }) {
           <p className="field-hint warning">
             LED output unavailable, SPI did not open
             {lighting.error ? `: ${lighting.error}` : ''}
+          </p>
+        )}
+
+        {waterSupply?.enabled && waterSupply.present !== true && (
+          <p className="field-hint warning">
+            {waterSupply.present === false
+              ? 'Water supply is dry — watering is blocked until the reservoir is refilled.'
+              : 'Water supply sensor is not responding — watering is blocked.'}
           </p>
         )}
 

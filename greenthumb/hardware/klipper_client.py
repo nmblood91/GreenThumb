@@ -34,6 +34,24 @@ class KlipperClient:
             "homed": "x" in (toolhead.get("homed_axes") or ""),
         }
 
+    def water_supply_present(self) -> bool | None:
+        """True if the supply tube reads wet, None if the sensor cannot be read."""
+        response = self._send_command(
+            "objects/query",
+            {"objects": {"filament_switch_sensor water_supply": ["filament_detected"]}},
+        )
+        if not response.get("ok"):
+            return None
+
+        sensor = response.get("result", {}).get("status", {}).get(
+            "filament_switch_sensor water_supply"
+        )
+        # Absent rather than false when printer.cfg has no such section, which
+        # must stay distinguishable from the sensor reporting a dry line.
+        if not sensor or "filament_detected" not in sensor:
+            return None
+        return bool(sensor["filament_detected"])
+
     def home_gantry(self) -> dict[str, Any]:
         return self.send_gcode("G28 X", timeout=MOTION_TIMEOUT)
 

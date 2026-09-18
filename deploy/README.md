@@ -255,6 +255,48 @@ on the MCU and a dropped connection cannot strand the pump running.
 
 See [POWER_SYSTEM.md](../POWER_SYSTEM.md) for complete busbar and fusing specifications.
 
+## Wiring the Water Level Sensor
+
+A non-contact liquid sensor (CQRobot CQRSENYW001 or similar) clamped around the
+supply tube lets the system refuse to water when the reservoir is empty, instead
+of running the pump and logging a dose that delivered nothing.
+
+**Mount it upstream** — between the reservoir and the pump inlet, close to the
+pump. These sensors detect presence, not flow, so a downstream sensor would read
+the standing water in the outlet line as success even with a dead pump. Mounting
+near the pump inlet also catches a lost prime or an air leak in the suction line,
+not just an empty tank.
+
+**Set the board's dial switch to 3.3V output before wiring.** The SKR's endstop
+inputs are 3.3V; at the 5V setting the sensor would overdrive the pin. With it at
+3.3V the signal wire connects directly, no divider or level shifter.
+
+```
+Sensor VCC (red)   ----> 5V (Pi header pin 2, or the busbar 5V rail)
+Sensor GND (black) ----> common ground, shared with the SKR
+Sensor OUT (green) ----> Y-STOP signal pin (PC1)
+```
+
+Z-STOP is the spare if Y-STOP is taken. The sensor senses through 0-13 mm, so
+check your tube's outer diameter falls inside that, and adjust the sensitivity
+pot if the board has one.
+
+**Confirm polarity before trusting it.** Bench the sensor first, powered at 5V
+with the dial at 3.3V, and read the output on a full tube and an empty one —
+allow 500 ms between changing the tube and reading, that is its response time.
+Then check Klipper agrees:
+
+```bash
+python3 /opt/greenthumb/deploy/pi/send-gcode.py QUERY_FILAMENT_SENSOR SENSOR=water_supply
+```
+
+A full tube must report detected. If it reads backwards, change `switch_pin` to
+`^!PC1` in `printer.cfg` and re-run the install script rather than rewiring.
+
+Once confirmed, set `WATER_SENSOR_ENABLED=true` in `/opt/greenthumb/.env` and
+restart the API. While enabled, a dry **or unreadable** line blocks the pump: a
+sensor declared present but not answering is a fault, not a reason to pump blind.
+
 ## Wiring the LED Strip
 
 Supported strips, selectable as **LED strip type** in the settings page:

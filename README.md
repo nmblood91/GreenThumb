@@ -114,7 +114,8 @@ reasoning in plain language, for people who won't be reading the code.
 | Soil sensors | Real — I2C via the seesaw protocol, no simulation |
 | Gantry | Real — Klipper over its Unix socket |
 | Pump | Real — Klipper `output_pin` on the SKR's HE0 MOSFET |
-| LEDs | Real — WS2811 over SPI, all four modes including the per-zone schedule |
+| LEDs | Real — WS2812B/WS2815/GS8208/WS2811 over SPI, strip type selectable in settings |
+| Water level sensor | Real — non-contact sensor on the supply tube, via Klipper |
 | Camera | Not built — the UI controls for it are inert |
 
 Automatic watering is disabled by default (`auto_watering_enabled` in

@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     auto_watering_enabled: bool = False
     watering_cooldown_minutes: int = 30
 
+    # Requires the liquid sensor wired to the supply tube and its polarity
+    # confirmed. While on, a dry or unreadable line blocks the pump: a sensor
+    # declared present but not answering is a fault, not a reason to pump blind.
+    water_sensor_enabled: bool = False
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

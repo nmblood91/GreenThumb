@@ -69,6 +69,7 @@ class GreenThumbAutomation:
             address: unavailable_sample(address) for address in self.sensor_hub.addresses
         }
         self._last_watered: dict[str, datetime] = {}
+        self._supply_present: bool | None = None
 
         self.zones = [
             ZoneSpec(name="Zone 1", zone_id="zone_1", sensor_address=0x36, moisture_target=45, watering_volume_ml=100, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=150),
@@ -178,6 +179,12 @@ class GreenThumbAutomation:
         return self.sensor_hub.raw_to_percent(sum(window) / len(window))
 
     def _run_watering_cycle(self) -> None:
+        # Once per tick rather than once per zone: the supply serves every zone,
+        # so four identical queries and four identical warnings say nothing more
+        # than one does.
+        if settings.water_sensor_enabled and self.check_water_supply() is not True:
+            return
+
         for zone in self.zones:
             window = self._history.get(zone.sensor_address)
             # Only act on a full window, so neither a single bad reading nor the
@@ -208,8 +215,36 @@ class GreenThumbAutomation:
             return True
         return datetime.now() - last >= timedelta(minutes=settings.watering_cooldown_minutes)
 
+    def check_water_supply(self) -> bool | None:
+        """Wet/dry/unknown for the supply tube; None when no sensor is configured."""
+        if not settings.water_sensor_enabled:
+            return None
+
+        present = self.klipper.water_supply_present()
+        # Logged on change only: an empty reservoir would otherwise write a line
+        # every tick, for every zone, for as long as it stayed empty.
+        if present != self._supply_present:
+            self._supply_present = present
+            if present is True:
+                logger.info("Water supply restored")
+            elif present is False:
+                logger.warning("Water supply is dry, watering is blocked")
+            else:
+                logger.warning("Water supply sensor unreadable, watering is blocked")
+        return present
+
     def _move_and_water(self, zone: ZoneSpec, volume_ml: int | None = None) -> dict[str, object]:
         volume = zone.watering_volume_ml if volume_ml is None else max(0, int(volume_ml))
+
+        # Checked before moving: no point travelling to a zone that cannot be
+        # watered. Anything but a confirmed wet line blocks the pump.
+        if settings.water_sensor_enabled and self.check_water_supply() is not True:
+            # Debug, not warning: check_water_supply already logs the state
+            # change, and the reason travels back to the caller in the response.
+            reason = "water supply is dry or unreadable"
+            logger.debug("Not watering %s: %s", zone.zone_id, reason)
+            return {"status": "error", "zone_id": zone.zone_id, "error": reason}
+
         move = self.klipper.move_gantry_absolute(zone.position_mm)
         if not move.get("ok"):
             logger.warning(
@@ -242,6 +277,10 @@ class GreenThumbAutomation:
             "app": settings.app_name,
             "movement": self.klipper.status(),
             "lighting": self.leds.status(),
+            "water_supply": {
+                "enabled": settings.water_sensor_enabled,
+                "present": self.check_water_supply(),
+            },
             "zones": [status.__dict__ for status in zone_status],
         }
 

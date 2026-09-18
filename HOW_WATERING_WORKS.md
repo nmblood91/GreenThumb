@@ -58,18 +58,26 @@ no history, and no history means no way to tell a real trend from a fluke.
 
 ## What has to be true before it waters
 
-Every minute, for each pot, the planter asks four questions in order. **All four
+Every minute, for each pot, the planter asks five questions in order. **All five
 must be yes** or it moves on and tries again next minute.
 
 1. **Do I have ten readings yet?** If it just started up, no — wait.
 2. **Is the ten-minute average below the target for this plant?** Each pot has
    its own target, because a fern and a succulent don't want the same thing.
 3. **Has it been at least 30 minutes since I last watered this pot?** See below.
-4. **Did the arm actually reach the pot?** If the arm can't move — it isn't
+4. **Is there actually water to pump?** A sensor clipped to the supply tube says
+   whether water is reaching the pump. If the reservoir has run dry, the planter
+   stops here rather than running a pump that has nothing to move.
+5. **Did the arm actually reach the pot?** If the arm can't move — it isn't
    calibrated, something is in the way — the planter refuses to run the pump.
    Watering the wrong spot is worse than not watering.
 
 Only then does the pump run.
+
+Question 4 is the one that stops a specific kind of lie. Without it, an empty
+reservoir looks exactly like a successful watering: the pump runs, nothing comes
+out, and the planter records that your plant was watered. Everything else here
+fails loudly; that one failed silently.
 
 ## The half-hour wait, and why it matters
 
@@ -142,6 +150,11 @@ rather than toward flooding:
   also quietly retries it every minute, so a loose connector that reseats itself
   recovers on its own.
 - **The arm can't move.** The pump doesn't run. No water goes anywhere.
+- **The reservoir runs dry.** The supply sensor reports it, the pump doesn't run,
+  and the planter keeps checking every minute — so it resumes on its own once you
+  refill, with no cooldown to wait out, because no watering actually happened.
+  A sensor that stops answering is treated the same as a dry line: the planter
+  would rather skip a watering than run the pump on a guess.
 - **The connection to the motion board drops mid-pour.** The pump is commanded
   off regardless, and the board is configured to shut the pump off by itself if
   it loses contact with the software. Two independent stops, because a pump stuck

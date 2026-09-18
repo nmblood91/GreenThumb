@@ -54,6 +54,14 @@ gcode:
 [force_move]
 enable_force_move: True
 
+# Non-contact liquid sensor clamped on the supply tube between reservoir and
+# pump inlet. Declared as a filament sensor purely because that exposes the pin
+# state through objects/query; runout handling is off, the watering logic owns
+# the decision. Flip to ^!PC1 if a full tube reads as empty.
+[filament_switch_sensor water_supply]
+switch_pin: ^PC1
+pause_on_runout: False
+
 [stepper_y]
 step_pin: PB10
 dir_pin: PB2
