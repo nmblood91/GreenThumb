@@ -70,6 +70,8 @@ class GreenThumbAutomation:
         }
         self._last_watered: dict[str, datetime] = {}
         self._supply_present: bool | None = None
+        self._pump_timer: threading.Timer | None = None
+        self._pump_lock_held = False
 
         self.zones = [
             ZoneSpec(name="Zone 1", zone_id="zone_1", sensor_address=0x36, moisture_target=45, watering_volume_ml=100, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=150),
@@ -214,6 +216,57 @@ class GreenThumbAutomation:
         if last is None:
             return True
         return datetime.now() - last >= timedelta(minutes=settings.watering_cooldown_minutes)
+
+    def run_pump(self) -> dict[str, object]:
+        """Start the pump and leave it running, for bench testing.
+
+        Not gated on the water sensor: running a dry line on purpose is part of
+        what this is for.
+        """
+        # Held across requests rather than through _exclusive, so the control
+        # loop cannot start a watering cycle while the pump is manually on.
+        if not self._hardware_lock.acquire(blocking=False):
+            raise HardwareBusyError("Pump run rejected: hardware is busy")
+        self._pump_lock_held = True
+
+        result = self.pump.start()
+        if not result.get("ok", True) or not self.pump.is_running:
+            # Release rather than strand the lock and block watering forever.
+            self._release_pump_lock()
+            return {"status": "error", "error": "pump did not start"}
+
+        # Nothing else stops this if the browser closes or the network drops.
+        self._pump_timer = threading.Timer(settings.pump_max_run_seconds, self._auto_stop_pump)
+        self._pump_timer.daemon = True
+        self._pump_timer.start()
+
+        logger.info("Pump running, auto-stop in %ds", settings.pump_max_run_seconds)
+        return {
+            "status": "ok",
+            "running": True,
+            "max_run_seconds": settings.pump_max_run_seconds,
+        }
+
+    def stop_pump(self) -> dict[str, object]:
+        """Stop the pump. Safe to call at any time, running or not."""
+        if self._pump_timer:
+            self._pump_timer.cancel()
+            self._pump_timer = None
+
+        self.pump.stop()
+        self._release_pump_lock()
+        return {"status": "ok", "running": False}
+
+    def _auto_stop_pump(self) -> None:
+        logger.warning("Pump hit its %ds limit, stopping", settings.pump_max_run_seconds)
+        self.stop_pump()
+
+    def _release_pump_lock(self) -> None:
+        # Guarded: releasing a lock nobody holds would let the control loop and a
+        # manual command run the hardware at the same time.
+        if self._pump_lock_held:
+            self._pump_lock_held = False
+            self._hardware_lock.release()
 
     def check_water_supply(self) -> bool | None:
         """Wet/dry/unknown for the supply tube; None when no sensor is configured."""

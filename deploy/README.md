@@ -261,11 +261,37 @@ A non-contact liquid sensor (CQRobot CQRSENYW001 or similar) clamped around the
 supply tube lets the system refuse to water when the reservoir is empty, instead
 of running the pump and logging a dose that delivered nothing.
 
-**Mount it upstream** — between the reservoir and the pump inlet, close to the
-pump. These sensors detect presence, not flow, so a downstream sensor would read
-the standing water in the outlet line as success even with a dead pump. Mounting
-near the pump inlet also catches a lost prime or an air leak in the suction line,
-not just an empty tank.
+**Mount it upstream and as low as possible** — on the first section of tube
+outside the reservoir, not up at the pump inlet.
+
+Upstream because these sensors detect presence, not flow: a downstream sensor
+would read the standing water in the outlet line as success even with a dead
+pump. Low because with the pump above the water line, the pump inlet is the
+*highest* point of the supply line and so the first place to go dry if prime
+slips. A sensor there would report a lost prime as an empty reservoir, blocking
+watering over something the pump re-primes by itself in seconds — and it would
+not recover, because refilling a reservoir does not re-wet a high point.
+
+How honest the reading is depends on how the tube leaves the reservoir:
+
+- **Bottom or side bulkhead outlet (preferred).** The tube leaves at the
+  reservoir's lowest point, so gravity keeps that section wet whenever there is
+  water above it. The sensor then reports **reservoir level** — the thing a human
+  has to fix — and refilling clears the blocked state immediately.
+- **Tube dipped in from the top.** Every reachable section of tube is then above
+  the water line, so the reading conflates "reservoir has water" with "line is
+  still primed", and a lost prime will not clear on a refill.
+
+**Keep the nozzle the highest point in the system.** With the reservoir below it,
+a failed tube seal means nothing happens; raise the reservoir above the nozzle and
+the same failure siphons the whole tank onto the floor, held back only by the pump
+tube. A stopped peristaltic pump is a closed valve because its rollers occlude the
+tube — that is what makes the nozzle-high arrangement safe, and also why elevating
+the reservoir would not remove the need for the pump.
+
+Keep the suction line short and steadily rising, with no high spots to trap air.
+Suction joints are far less forgiving than pressure joints: a pinhole that would
+never drip on the outlet side will break prime on the inlet side.
 
 **Set the board's dial switch to 3.3V output before wiring.** The SKR's endstop
 inputs are 3.3V; at the 5V setting the sensor would overdrive the pin. With it at

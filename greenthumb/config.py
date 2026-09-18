@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     # converts millilitres into a run time, and an error here scales every
     # watering by the same factor while still reporting success.
     pump_flow_ml_per_second: float = 1.67
+    # Dead-man limit for the manual run button, not a dosing figure. A pump left
+    # running empties the reservoir onto the floor, so it stops itself at this
+    # regardless of what the browser does.
+    pump_max_run_seconds: int = 120
     # Strip chip: sets the bit timing and the usual channel order. Selectable in
     # the settings page. WS2812B/WS2815/GS8208 are one pixel per LED; WS2811
     # drives three LEDs per pixel, so set led_count to LEDs/3 for it.

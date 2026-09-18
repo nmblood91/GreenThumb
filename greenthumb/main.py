@@ -118,6 +118,20 @@ def water_zone(zone_id: str, volume_ml: int | None = None) -> dict[str, object]:
     return result
 
 
+@app.post(f"{settings.api_prefix}/pump/run")
+def run_pump() -> dict[str, object]:
+    result = automation.run_pump()
+    log_event(f"Pump started manually (auto-stop in {result.get('max_run_seconds')}s)")
+    return result
+
+
+@app.post(f"{settings.api_prefix}/pump/stop")
+def stop_pump() -> dict[str, object]:
+    result = automation.stop_pump()
+    log_event("Pump stopped manually")
+    return result
+
+
 @app.post(f"{settings.api_prefix}/lights/mode")
 async def set_light_mode_from_body(payload: dict[str, str] = Body(default_factory=dict)) -> dict[str, object]:
     mode = str(payload.get("mode", "schedule")).strip().lower()

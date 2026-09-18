@@ -46,6 +46,28 @@ export function GeneralPanel({ overview, cameraStatus }) {
     cameraEnabled: true,
   })
 
+  const [pumpStatus, setPumpStatus] = useState('')
+
+  const pumpAction = async (action) => {
+    try {
+      const response = await fetch(`${API_BASE}/pump/${action}`, { method: 'POST' })
+      const data = await response.json()
+      if (!response.ok) {
+        setPumpStatus(data.error || 'Request failed')
+        return
+      }
+      setPumpStatus(
+        action === 'run'
+          ? `Pump running — stops automatically after ${data.max_run_seconds}s.`
+          : 'Pump stopped.',
+      )
+    } catch (error) {
+      // Louder than the console.error the settings save uses: this control
+      // moves water, so a silent failure is not acceptable.
+      setPumpStatus(`Failed to ${action} pump: ${error.message}`)
+    }
+  }
+
   const lighting = overview?.lighting
   const colorOrderOptions = lighting?.color_order_options ?? DEFAULT_COLOR_ORDERS
   const chipOptions = lighting?.chip_options ?? []
@@ -233,6 +255,26 @@ export function GeneralPanel({ overview, cameraStatus }) {
             />
             Camera enabled
           </label>
+        </div>
+
+        <div className="field-row">
+          <label>Pump test</label>
+          <div className="motion-grid two-up">
+            <button type="button" onClick={() => pumpAction('run')}>
+              Run Pump
+            </button>
+            {/* Never disabled: it is the panic control, and disabling it on the
+                frontend's idea of state would fail exactly when that idea is
+                wrong. Stopping an already-stopped pump is harmless. */}
+            <button type="button" onClick={() => pumpAction('stop')}>
+              Stop Pump
+            </button>
+          </div>
+          <p className="field-hint">
+            Runs the pump continuously for bench testing. It stops on its own at
+            the safety limit even if you close this page.
+          </p>
+          {pumpStatus && <p className="field-hint warning">{pumpStatus}</p>}
         </div>
 
         <button type="button" className="primary save-settings-button" onClick={saveSettings}>
