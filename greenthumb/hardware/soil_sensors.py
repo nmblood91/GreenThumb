@@ -163,9 +163,109 @@ class SoilSensorHub:
                 pass
 
 
+def _soak(hub: SoilSensorHub, seconds: int, interval: float) -> int:
+    """Hammer the bus and report per-address error rates.
+
+    Intermittent I2C trouble from cable capacitance or noise shows up as
+    occasional failed reads, which are invisible in a single sample and easy to
+    mistake for a flaky sensor weeks later. This turns it into a number.
+    """
+    stats = {
+        address: {"reads": 0, "errors": 0, "values": []} for address in hub.addresses
+    }
+    started = time.monotonic()
+    deadline = started + seconds
+    next_report = started + 10
+
+    print(f"Soaking the I2C bus for {seconds}s across {len(hub.addresses)} addresses...")
+    while time.monotonic() < deadline:
+        for address in hub.addresses:
+            sample = hub.read_one(address)
+            entry = stats[address]
+            entry["reads"] += 1
+            if sample.moisture_raw < 0:
+                entry["errors"] += 1
+            else:
+                entry["values"].append(sample.moisture_raw)
+
+        now = time.monotonic()
+        if now >= next_report:
+            errors = sum(e["errors"] for e in stats.values())
+            reads = sum(e["reads"] for e in stats.values())
+            print(f"  {now - started:5.0f}s  {reads} reads, {errors} errors")
+            next_report = now + 10
+        time.sleep(interval)
+
+    print(f"\n{'addr':<6} {'reads':>7} {'errors':>7} {'rate':>7}  {'raw min/mean/max':<22} verdict")
+    worst = 0.0
+    for address, entry in stats.items():
+        reads, errors = entry["reads"], entry["errors"]
+        values = entry["values"]
+        rate = (errors / reads * 100) if reads else 0.0
+
+        if not values:
+            spread, verdict = "-", "no sensor at this address"
+        else:
+            spread = f"{min(values):.0f} / {sum(values) / len(values):.0f} / {max(values):.0f}"
+            worst = max(worst, rate)
+            if errors == 0:
+                verdict = "clean"
+            elif rate < 1:
+                verdict = "occasional dropouts, acceptable"
+            else:
+                verdict = "unreliable - check routing, hub pull-ups, cable length"
+
+        print(f"0x{address:02x}   {reads:>7} {errors:>7} {rate:>6.2f}%  {spread:<22} {verdict}")
+
+    if worst == 0:
+        print("\nNo errors. The bus is healthy at this cable length.")
+    elif worst < 1:
+        print(f"\nWorst address {worst:.2f}% errors. Tolerable, but watch it if cabling changes.")
+    else:
+        print(
+            f"\nWorst address {worst:.2f}% errors. Try a slower I2C clock "
+            "(dtparam=i2c_arm_baudrate), check the hubs for stacked pull-up "
+            "resistors, and keep the run away from the LED data and motor wiring."
+        )
+    return 0 if worst < 1 else 1
+
+
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(name)s: %(message)s")
-    hub = SoilSensorHub()
+    import argparse
+    import sys
+
+    from greenthumb.config import settings
+
+    parser = argparse.ArgumentParser(description="Read the soil sensors directly.")
+    parser.add_argument(
+        "--soak",
+        type=int,
+        nargs="?",
+        const=60,
+        metavar="SECONDS",
+        help="hammer the bus for this long (default 60s) and report error rates",
+    )
+    parser.add_argument(
+        "--interval", type=float, default=0.2, help="seconds between soak passes"
+    )
+    args = parser.parse_args()
+
+    # Per-read errors are the thing being counted during a soak, so logging each
+    # one would bury the summary in exactly the case the summary is for.
+    logging.basicConfig(
+        level=logging.CRITICAL if args.soak else logging.DEBUG,
+        format="%(levelname)s %(name)s: %(message)s",
+    )
+
+    hub = SoilSensorHub(
+        addresses=settings.moisture_sensor_addresses_list,
+        raw_dry=settings.moisture_raw_dry,
+        raw_wet=settings.moisture_raw_wet,
+    )
+
+    if args.soak:
+        sys.exit(_soak(hub, args.soak, args.interval))
+
     for sample in hub.read_all():
         print(
             f"0x{sample.sensor_address:02x}  raw={sample.moisture_raw:.0f}  "

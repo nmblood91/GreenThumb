@@ -95,6 +95,14 @@ For a clean installation with the latest OS, start here:
    ```
    Sensors that are absent or unplugged report `-1` rather than a fake value.
 
+   Check the bus is reliable, not just working, after any cabling change:
+   ```bash
+   /opt/greenthumb/.venv/bin/python -m greenthumb.hardware.soil_sensors --soak 120
+   ```
+   This hammers every address for two minutes and reports an error rate each.
+   Intermittent I2C trouble is invisible in a single read and easy to mistake for
+   a flaky sensor months later — see **I2C cable length** below.
+
 8. **Open the web UI**:
    - Open `http://greenthumb.local` in your browser
    - Or use the Pi's IP: `http://<pi-ip>`
@@ -254,6 +262,50 @@ The backend doses with `SET_PIN PIN=pump VALUE=1`, a `G4` dwell, then
 on the MCU and a dropped connection cannot strand the pump running.
 
 See [POWER_SYSTEM.md](../POWER_SYSTEM.md) for complete busbar and fusing specifications.
+
+## I2C cable length
+
+The soil sensors hang off a hub tree rather than home runs back to the Pi. A
+representative layout is four 150 mm sensor drops into two sub-hubs, 400 mm from
+each sub-hub to a master hub, and 100 mm from there to the Pi — about **1.5 m of
+cable in total**.
+
+**Total bus capacitance is what matters, not the longest run**, and it is the sum
+of every branch. I2C allows 400 pF; at roughly 60 pF/m that 1.5 m contributes
+about 90 pF, plus ~10 pF per sensor pin and a little for the hub boards. Around
+145 pF, so roughly a third of budget. The tree also uses *less* cable than home
+running each sensor would.
+
+Too much capacitance slows the rise time of SDA and SCL, so the line has not
+reached a valid high when the clock samples it. It does not fail cleanly — you
+get occasional NACKs, which surface here as sensors randomly reporting `-1`.
+
+Three things keep it healthy:
+
+- **The I2C clock is set to 50 kHz** by the install script
+  (`dtparam=i2c_arm_baudrate` in the boot config, applied after a reboot). Half
+  the default speed means twice the time for the line to rise. The sensors are
+  read once a minute, so the lost bandwidth costs nothing.
+- **Use passive hubs with no pull-up resistors.** Each STEMMA sensor already
+  carries 10 kΩ pull-ups; four in parallel with the Pi's built-in 1.8 kΩ is
+  already about 1 kΩ, or 3.3 mA, which is at the I2C sink limit. Every hub that
+  adds its own drags that lower until the sensors cannot pull the line
+  convincingly low. If your hubs have them, remove the resistors rather than
+  buying different hubs.
+- **Route away from the LED data line and the stepper wiring.** 1.5 m of I2C run
+  parallel to an 800 kHz WS2812B data line will cause more trouble than the
+  capacitance ever will. Crossing at right angles is fine; running alongside is
+  not. Sharing a few centimetres near the Pi header is harmless.
+
+Verify with a soak test rather than a single read:
+
+```bash
+/opt/greenthumb/.venv/bin/python -m greenthumb.hardware.soil_sensors --soak 120
+```
+
+Clean means zero errors. Under 1% is tolerable. Above that, slow the clock
+further, check the hubs for stacked pull-ups, and look at routing. Exit status is
+non-zero when any populated address exceeds 1%, so it can gate a scripted check.
 
 ## Wiring the Water Level Sensor
 

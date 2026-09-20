@@ -7,6 +7,29 @@ echo "Installing GreenThumb on the Pi..."
 echo "Enabling I2C interface..."
 sudo raspi-config nonint do_i2c 0
 
+# Halve the I2C clock. The sensor tree is around 1.5 m of cable across three
+# hubs, and capacitance that long slows the rise time of SDA/SCL; a slower clock
+# leaves more time for the line to reach a valid high. Sensors are read once a
+# minute, so the lost bandwidth costs nothing.
+I2C_BAUDRATE=50000
+BOOT_CONFIG=/boot/firmware/config.txt
+[ -f "$BOOT_CONFIG" ] || BOOT_CONFIG=/boot/config.txt
+I2C_CLOCK_CHANGED=0
+if [ -f "$BOOT_CONFIG" ]; then
+  if grep -q "^dtparam=i2c_arm_baudrate=$I2C_BAUDRATE$" "$BOOT_CONFIG"; then
+    echo "✓ I2C clock already $I2C_BAUDRATE Hz"
+  elif grep -q "^dtparam=i2c_arm_baudrate=" "$BOOT_CONFIG"; then
+    sudo sed -i "s/^dtparam=i2c_arm_baudrate=.*/dtparam=i2c_arm_baudrate=$I2C_BAUDRATE/" "$BOOT_CONFIG"
+    I2C_CLOCK_CHANGED=1
+  else
+    echo "dtparam=i2c_arm_baudrate=$I2C_BAUDRATE" | sudo tee -a "$BOOT_CONFIG" >/dev/null
+    I2C_CLOCK_CHANGED=1
+  fi
+  [ "$I2C_CLOCK_CHANGED" -eq 1 ] && echo "✓ Set I2C clock to $I2C_BAUDRATE Hz (applies after reboot)"
+else
+  echo "⚠️  No boot config found, leaving the I2C clock at its default"
+fi
+
 # Enable SPI; the LED strip is clocked out over MOSI (GPIO10, header pin 19)
 echo "Enabling SPI interface..."
 sudo raspi-config nonint do_spi 0
@@ -200,4 +223,6 @@ printf "API: http://$(hostname -I | awk '{print $1}'):8000\n"
 
 if [ "$REBOOT_NEEDED" -eq 1 ]; then
   printf "\n⚠️  Reboot required to finish enabling I2C/SPI, then re-run this script.\n"
+elif [ "$I2C_CLOCK_CHANGED" -eq 1 ]; then
+  printf "\n⚠️  Reboot to apply the new I2C clock speed.\n"
 fi
