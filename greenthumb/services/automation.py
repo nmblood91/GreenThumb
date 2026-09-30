@@ -12,6 +12,7 @@ from greenthumb.hardware.klipper_client import KlipperClient
 from greenthumb.hardware.lighting import LedController
 from greenthumb.hardware.pump import PumpController
 from greenthumb.hardware.soil_sensors import SoilSensorHub, unavailable_sample
+from greenthumb.history import DEFAULT_DB_PATH, HistoryStore
 from greenthumb.models import SensorSample, ZoneSpec, ZoneStatus
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,7 @@ class GreenThumbAutomation:
         klipper_client: KlipperClient | None = None,
         pump: PumpController | None = None,
         leds: LedController | None = None,
+        history: HistoryStore | None = None,
     ) -> None:
         self.sensor_hub = sensor_hub or SoilSensorHub(
             addresses=settings.moisture_sensor_addresses_list,
@@ -69,6 +71,7 @@ class GreenThumbAutomation:
             address: unavailable_sample(address) for address in self.sensor_hub.addresses
         }
         self._last_watered: dict[str, datetime] = {}
+        self.history = history or HistoryStore(settings.history_db_path or DEFAULT_DB_PATH)
         self._supply_present: bool | None = None
         self._pump_timer: threading.Timer | None = None
         self._pump_lock_held = False
@@ -167,11 +170,20 @@ class GreenThumbAutomation:
         )
 
     def _poll_sensors(self) -> None:
+        samples = []
         for address in self.sensor_hub.addresses:
             sample = self.sensor_hub.read_one(address)
             self._latest[address] = sample
+            samples.append(sample)
             if sample.moisture_raw >= 0:
                 self._history[address].append(sample.moisture_raw)
+
+        # One transaction for the whole tick. The store drops failed reads, and
+        # a storage fault must not stop the loop from watering.
+        try:
+            self.history.record_readings(samples)
+        except Exception:
+            logger.exception("Failed to record readings")
 
     def smoothed_percent(self, address: int) -> float:
         """Mean moisture over the window; this, not a single read, drives watering."""
@@ -286,7 +298,9 @@ class GreenThumbAutomation:
                 logger.warning("Water supply sensor unreadable, watering is blocked")
         return present
 
-    def _move_and_water(self, zone: ZoneSpec, volume_ml: int | None = None) -> dict[str, object]:
+    def _move_and_water(
+        self, zone: ZoneSpec, volume_ml: int | None = None, trigger: str = "auto"
+    ) -> dict[str, object]:
         volume = zone.watering_volume_ml if volume_ml is None else max(0, int(volume_ml))
 
         # Checked before moving: no point travelling to a zone that cannot be
@@ -307,6 +321,10 @@ class GreenThumbAutomation:
 
         self.pump.deliver_ml(volume)
         self._last_watered[zone.zone_id] = datetime.now()
+        try:
+            self.history.record_watering(zone.zone_id, volume, trigger)
+        except Exception:
+            logger.exception("Failed to record watering for %s", zone.zone_id)
         return {"status": "ok", "zone_id": zone.zone_id, "volume_ml": volume}
 
     def _last_watered_iso(self, zone_id: str) -> str | None:
@@ -337,6 +355,28 @@ class GreenThumbAutomation:
             "zones": [status.__dict__ for status in zone_status],
         }
 
+    def get_history(self, hours: float) -> dict[str, object]:
+        """Bucketed history for the chart, zones aligned onto one timestamp axis."""
+        addresses = [zone.sensor_address for zone in self.zones]
+        bucket, timestamps, series = self.history.series(addresses, hours)
+
+        return {
+            "hours": hours,
+            "bucket_seconds": bucket,
+            "timestamps": timestamps,
+            "zones": [
+                {
+                    "zone_id": zone.zone_id,
+                    "name": zone.name,
+                    "sensor_address": zone.sensor_address,
+                    "moisture_target": zone.moisture_target,
+                    **series[zone.sensor_address],
+                }
+                for zone in self.zones
+            ],
+            "waterings": self.history.waterings(hours),
+        }
+
     def read_sensors(self) -> list[dict[str, object]]:
         """Last polled reading per sensor; the control loop owns the I2C bus."""
         return [
@@ -356,7 +396,7 @@ class GreenThumbAutomation:
         # Moves first, like the automatic path. Pumping without moving waters
         # whatever the nozzle happens to be parked over.
         with self._exclusive(f"Watering {zone_id}"):
-            return self._move_and_water(zone, volume_ml)
+            return self._move_and_water(zone, volume_ml, trigger="manual")
 
     def set_light_mode(self, mode: str) -> dict[str, object]:
         result = self.leds.set_mode(mode)

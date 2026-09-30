@@ -5,6 +5,7 @@ import { GantryPanel } from './components/GantryPanel'
 import { GeneralPanel } from './components/GeneralPanel'
 import { ZonesPanel } from './components/PlantsPanel'
 import { LogsPanel } from './components/LogsPanel'
+import { HistoryPanel } from './components/HistoryPanel'
 import './App.css'
 
 const API_BASE = '/api/v1'
@@ -196,6 +197,8 @@ function App() {
       {activeTab === 'plants' && (
         <ZonesPanel zones={zones} onSave={saveZone} onWater={waterZone} />
       )}
+      {/* Fetches its own data so changing the range does not reload the dashboard. */}
+      {activeTab === 'history' && <HistoryPanel />}
       {activeTab === 'logs' && <LogsPanel logs={logs} />}
     </div>
   )

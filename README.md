@@ -45,6 +45,7 @@ The app exposes a small initial API surface:
 - `GET /health`
 - `GET /api/v1/overview`
 - `GET /api/v1/sensors`
+- `GET /api/v1/history?hours=24`
 - `POST /api/v1/water/{zone_id}` (optional `?volume_ml=` overrides the zone setting)
 - `POST /api/v1/lights/{mode}`
 - `POST /api/v1/motion/home/{axis}`
@@ -106,6 +107,26 @@ A background loop polls every sensor once a minute, averages the last ten
 readings per zone, and waters a zone whose average falls below its target.
 [HOW_WATERING_WORKS.md](HOW_WATERING_WORKS.md) explains the rules and the
 reasoning in plain language, for people who won't be reading the code.
+
+## History
+
+Every reading is written to SQLite (`data/greenthumb.db`) once a minute, along
+with each watering. The **History** tab charts moisture or temperature per zone
+over 6 hours to 90 days, with dashed marks where waterings happened — which is
+what makes it possible to tell whether a moisture target and dose are actually
+right for a plant, rather than guessing.
+
+Readings older than `history_retention_days` (90) are pruned daily. Gaps in a
+line mean that sensor could not be read; failed reads are never stored.
+
+## Tests
+
+```bash
+python tests/run_all.py
+```
+
+Plain assert scripts, no test dependency to install on the Pi. They stub `smbus2`
+and `spidev`, so they run on a development machine with no hardware attached.
 
 ## Hardware status
 

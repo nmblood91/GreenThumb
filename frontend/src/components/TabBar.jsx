@@ -3,6 +3,7 @@ export function TabBar({ activeTab, onChange }) {
     { key: 'gantry', label: 'Gantry' },
     { key: 'general', label: 'General' },
     { key: 'plants', label: 'Plants' },
+    { key: 'history', label: 'History' },
     { key: 'logs', label: 'Logs' },
   ]
 

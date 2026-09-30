@@ -569,3 +569,32 @@ input[type='color'] {
     grid-template-columns: 1fr;
   }
 }
+
+.history-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0 18px;
+}
+
+.range-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chart {
+  width: 100%;
+  min-height: 320px;
+}
+
+/* uPlot ships light-theme defaults; these pull it into the app's palette. */
+.chart .u-legend {
+  color: #cfe3d6;
+  font-size: 0.85rem;
+}
+
+.chart .u-legend th,
+.chart .u-legend td {
+  padding: 2px 8px;
+}

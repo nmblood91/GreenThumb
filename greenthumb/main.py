@@ -29,6 +29,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         max_instances=1,
         coalesce=True,
     )
+    # Daily rather than per tick: pruning 90 day old rows is not urgent work.
+    scheduler.add_job(
+        lambda: automation.history.prune(settings.history_retention_days),
+        "interval",
+        hours=24,
+        max_instances=1,
+        coalesce=True,
+    )
     scheduler.start()
     automation.leds.start()
     try:
@@ -95,6 +103,14 @@ def get_overview() -> dict[str, object]:
 @app.get(f"{settings.api_prefix}/sensors")
 async def read_sensors() -> list[dict[str, object]]:
     return automation.read_sensors()
+
+
+@app.get(f"{settings.api_prefix}/history")
+def get_history(hours: float = 24.0) -> dict[str, object]:
+    # Clamped to the retention window: asking for more only returns empty
+    # leading buckets and makes the chart look broken.
+    bounded = max(0.5, min(hours, settings.history_retention_days * 24))
+    return automation.get_history(bounded)
 
 
 @app.get(f"{settings.api_prefix}/logs")

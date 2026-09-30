@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     # declared present but not answering is a fault, not a reason to pump blind.
     water_sensor_enabled: bool = False
 
+    # History
+    history_retention_days: int = 90
+    # Empty means the default alongside the app, like logs/.
+    history_db_path: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
