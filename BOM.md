@@ -33,11 +33,20 @@
 
 ## Watering system
 - 12V peristaltic pump
-- Reservoir and tubing
-- Water delivery nozzle
+- **Reservoir with a bottom or side bulkhead outlet** — not a tank you dip a
+  tube into from the top; the level sensor cannot give an honest reading that
+  way. A plain tank plus an aftermarket bulkhead fitting also works
+- Tubing, sized to the level sensor's 0-13 mm sensing range
+- Water delivery nozzle — mounts on the gantry, and must sit above the
+  reservoir water line
 - Check valves or anti-drip fittings
 - Hose fittings and secure mounting
+- Non-contact liquid level sensor (CQRobot CQRSENYW001 or similar)
 - Optional flow sensor for diagnostics
+
+Vertical order is nozzle, then pump, then reservoir — see
+[deploy/README.md](deploy/README.md) for why, and what goes wrong if it is
+inverted.
 
 ## Lighting
 - Addressable LED strip

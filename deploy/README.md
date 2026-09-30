@@ -323,6 +323,69 @@ Clean means zero errors. Under 1% is tolerable. Above that, slow the clock
 further, check the hubs for stacked pull-ups, and look at routing. Exit status is
 non-zero when any populated address exceeds 1%, so it can gate a scripted check.
 
+## Plumbing layout
+
+Vertical order matters more than anything else about the water path. Top to
+bottom: **nozzle, pump, reservoir.**
+
+```
+   NOZZLE  ──────────── highest point in the system
+     │                  (over the pot, on the gantry)
+     │   outlet line
+     │
+   PUMP  ────────────── above the reservoir water line
+     │
+     │   suction line, short and steadily rising
+     │
+   RESERVOIR  ───────── lowest; water line below the nozzle
+```
+
+### Nozzle above the reservoir water line
+
+This is the safety-critical one. A siphon can only run downhill, so with the
+tank at the bottom a failed tube seal or a popped fitting means nothing happens
+— the water has nowhere to go. Invert it and the same failure drains the whole
+tank onto the floor.
+
+What makes this safe rather than merely lucky is that **a stopped peristaltic
+pump is a closed valve**: its rollers occlude the tube, so there is no open path
+even when it is off. That is also why raising the reservoir would not let you
+drop the pump — you would just be relying on that same occlusion to hold back a
+gravity feed permanently instead of only while idle.
+
+### Pump above the water line
+
+The pump does not need to sit below the water; peristaltic pumps self-prime.
+The cost is that the pump inlet becomes the *highest* point of the suction line
+and so the first place to go dry if prime slips. That is a non-event in itself —
+prime recovers in seconds — but it decides where the level sensor goes.
+
+Keep the suction line short and steadily rising, with no high spots to trap air.
+Suction joints are far less forgiving than pressure joints: a pinhole that would
+never drip on the outlet side will break prime on the inlet side.
+
+### Reservoir with a low outlet
+
+**Use a tank with a bottom or side bulkhead outlet, not a tube dipped in from
+the top.** This is a purchasing decision, not an assembly one, so it is worth
+settling before ordering.
+
+With a low outlet, the tube leaves at the tank's lowest point and gravity keeps
+that section wet whenever there is water above it. The level sensor clamped
+there then reports **reservoir level** — the thing a human can actually fix —
+and a refill clears the blocked state immediately.
+
+With a tube dipped in from the top, every reachable section of tube sits above
+the water line. The sensor can no longer separate "tank has water" from "line is
+still primed", and a lost prime will not clear on a refill, because topping up a
+tank does not re-wet a high point. The system would sit there refusing to water
+a full reservoir.
+
+Search terms that tend to find the right thing: *bulkhead fitting*, *hydroponic
+reservoir with drain*, or any tank sold with a spigot or bottom port. A plain
+tank plus an aftermarket bulkhead fitting works too, and is often cheaper than
+one sold pre-drilled.
+
 ## Wiring the Water Level Sensor
 
 A non-contact liquid sensor (CQRobot CQRSENYW001 or similar) clamped around the
@@ -334,32 +397,11 @@ outside the reservoir, not up at the pump inlet.
 
 Upstream because these sensors detect presence, not flow: a downstream sensor
 would read the standing water in the outlet line as success even with a dead
-pump. Low because with the pump above the water line, the pump inlet is the
-*highest* point of the supply line and so the first place to go dry if prime
-slips. A sensor there would report a lost prime as an empty reservoir, blocking
-watering over something the pump re-primes by itself in seconds — and it would
-not recover, because refilling a reservoir does not re-wet a high point.
-
-How honest the reading is depends on how the tube leaves the reservoir:
-
-- **Bottom or side bulkhead outlet (preferred).** The tube leaves at the
-  reservoir's lowest point, so gravity keeps that section wet whenever there is
-  water above it. The sensor then reports **reservoir level** — the thing a human
-  has to fix — and refilling clears the blocked state immediately.
-- **Tube dipped in from the top.** Every reachable section of tube is then above
-  the water line, so the reading conflates "reservoir has water" with "line is
-  still primed", and a lost prime will not clear on a refill.
-
-**Keep the nozzle the highest point in the system.** With the reservoir below it,
-a failed tube seal means nothing happens; raise the reservoir above the nozzle and
-the same failure siphons the whole tank onto the floor, held back only by the pump
-tube. A stopped peristaltic pump is a closed valve because its rollers occlude the
-tube — that is what makes the nozzle-high arrangement safe, and also why elevating
-the reservoir would not remove the need for the pump.
-
-Keep the suction line short and steadily rising, with no high spots to trap air.
-Suction joints are far less forgiving than pressure joints: a pinhole that would
-never drip on the outlet side will break prime on the inlet side.
+pump. Low because the pump inlet is the highest point of the supply line, so a
+sensor there would report a momentary lost prime as an empty reservoir — and
+would not recover on a refill. See [Plumbing layout](#plumbing-layout) above for
+why, and for why the reservoir needs a low outlet for this reading to mean
+anything.
 
 **Set the board's dial switch to 3.3V output before wiring.** The SKR's endstop
 inputs are 3.3V; at the 5V setting the sensor would overdrive the pin. With it at
