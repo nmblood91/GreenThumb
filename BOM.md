@@ -49,8 +49,10 @@
 ## Power and electronics
 - 12V power supply, 5A minimum (7A recommended)
 - DC-DC converter 12V to 5V @ 3A
-- Main inline fuse: 5A fast-blow
-- Pump circuit fuse: 2A fast-blow (optional but recommended)
+- Main inline fuse: 5A fast-blow (charger output into the busbar)
+- Pump circuit fuse: 1A fast-blow (SKR HE0 to pump positive)
+- LED circuit fuse: 2A fast-blow (busbar to strip +12V)
+- Inline fuse holders, 16 AWG leads, one per fuse above
 - Busbar / power distribution block
 - Wiring harness and cable routing
 - **See [POWER_SYSTEM.md](POWER_SYSTEM.md) for full electrical specifications**

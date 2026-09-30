@@ -180,29 +180,40 @@ unaffected by which end the switch lives at.
 
 ## Wiring the Pump to SKR Board
 
-The peristaltic pump is controlled via the SKR's **HE0 (heater) connector** on the bottom edge of the board. This is a switched 12V output that turns the pump on/off.
+The peristaltic pump is controlled via the SKR's **HE0 (heater) connector** on
+the bottom edge of the board, which is how Klipper can switch it on and off.
 
-**SKR Mini E3 V2.0 HE0 connector pinout (3 pins):**
+**HE0 switches the ground side, not the positive side.** The mosfet sits between
+PC8 and ground. The connector's other pin is the board's own 12V input rail
+brought out, so it is live whenever the SKR is powered — but the pump does not
+run, because its return path through PC8 stays open until Klipper closes the
+mosfet.
+
+That is worth being clear about, because it decides where the fuse goes. The
+pump's current path is:
+
 ```
-[12/24V] [PC8] [GND]
+SKR VIN → HE0 12/24V pin → pump (+) → motor → pump (−) → PC8 → mosfet → GND
 ```
 
-**Wiring from power busbar to SKR:**
-```
-12V Busbar (+)
-    ├→ [5A Main Fuse] → SKR Main Power Input
-    └→ [1A Pump Fuse] → HE0 "12/24V" pin
+A fuse protects the pump only if it sits somewhere in *that* loop.
 
-Pump (+) ───────→ 12V Busbar (+)
-Pump (-) ───────→ HE0 "PC8" pin
-HE0 "GND" ──────→ 12V Busbar GND
+**Wiring — both pump leads land on HE0:**
+```
+HE0 "12/24V" ──[1A Pump Fuse]──→ Pump (+)
+HE0 "PC8"    ──────────────────→ Pump (−)
 ```
 
 **Connection summary:**
-- Pump positive → 12V Busbar (fused)
+- HE0 12/24V pin → 1A fuse → pump positive
 - Pump negative → HE0 PC8 pin
-- HE0 12/24V pin → 12V Busbar (fused)
-- HE0 GND pin → Busbar GND
+- Nothing from the pump goes to the busbar — the SKR's own power feed supplies it
+- If your HE0 connector has a third GND pin, it is unused here; the mosfet
+  already grounds the pump through PC8
+
+Pump (+) could equally be taken from the busbar, since the HE0 12/24V pin is
+electrically the same node. Keeping the pair together at the connector just
+means one plug to pull and one fuse unambiguously in series with the motor.
 
 ### Flyback diode (required)
 
@@ -215,7 +226,7 @@ Fit it **across the pump's own two terminals**, in parallel with the motor — n
 inline with a wire, and not at the board end.
 
 ```
-   +12V  (fused, from busbar)
+   HE0 12/24V  (via the 1A pump fuse)
      │
      ├──────────────────┐
      │                  │
@@ -392,10 +403,14 @@ cut marks.** Cuttable between every LED means one pixel per LED (WS2815 /
 GS8208); cuttable only every third LED means WS2811.
 
 ```
-Supply (+) ----> Strip +V        (5V or 12V, matching the chip)
-Supply GND ----> Strip GND --+-- Pi GND (any ground pin)
-Pi GPIO10 (pin 19, MOSI) ----+-> [74AHCT125 level shifter] --> Strip DIN
+12V Busbar (+) --[2A Fuse]--> Strip +V     (12V strips; a 5V strip needs its
+Busbar GND -----> Strip GND --+-- Pi GND    own 5V supply, not the DC-DC)
+Pi GPIO10 (pin 19, MOSI) -----+-> [74AHCT125 level shifter] --> Strip DIN
 ```
+
+The 2A fuse is what keeps a shorted solder joint at the strip's input end from
+taking down the Pi and the motion board with it. Sizing and the 5V case are in
+[POWER_SYSTEM.md](../POWER_SYSTEM.md).
 
 **The data pin must be GPIO10 (header pin 19).** The driver clocks the waveform
 out of the SPI peripheral, which only exists on that pin. This avoids needing
