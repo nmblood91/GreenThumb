@@ -226,20 +226,25 @@ Fit it **across the pump's own two terminals**, in parallel with the motor — n
 inline with a wire, and not at the board end.
 
 ```
-   HE0 12/24V  (via the 1A pump fuse)
-     │
-     ├──────────────────┐
-     │                  │
-  Pump (+)         ═══╪◀═══   diode, STRIPED end toward +12V
-     │                  │
-  [ MOTOR ]             │
-     │                  │
-  Pump (−)              │
-     │                  │
-     ├──────────────────┘
-     │
-   HE0 PC8  (mosfet switches this to ground)
+  HE0 "12/24V"
+       │
+  [1A Pump Fuse]        in series, at the board end
+       │
+       ├──────────────┐
+       │              │
+    Pump (+)         ═╧═   STRIPED band at the top
+       │              ▲    (cathode to the positive side)
+   [ MOTOR ]          │
+       │              │    1N5822, in parallel,
+    Pump (−)          │    at the pump end
+       │              │
+       ├──────────────┘
+       │
+  HE0 "PC8"  ──→ mosfet ──→ GND
 ```
+
+Note the diode sits *downstream* of the fuse. That is deliberate: if you fit it
+backwards, the fuse is the thing that goes.
 
 **Striped end (cathode) to the positive terminal.** Orientation is not optional:
 reversed, the diode sits forward-biased across 12V as a dead short and blows the

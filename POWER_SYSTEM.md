@@ -151,10 +151,17 @@ number of LEDs you can count.
 
 1. **Always fuse the main charger output** — protects against internal shorts
 2. **Use fast-blow fuses** — electronics need quick response; slow-blow is for motors
-3. **Capacitor across pump input** — Add a 1000µF capacitor to smooth voltage spikes when pump starts
-4. **Label all circuits** — Use tape/labels on busbar pads and fuse holders
-5. **No bare connections** — Use heat shrink, electrical tape, or shrouded connectors
-6. **Check voltage under load** — Monitor Pi voltage; it should not drop below 4.75V
+3. **Flyback diode across the pump terminals** — Required, not optional. HE0's
+   mosfet expects a resistive heater; an inductive motor kicks the switched
+   terminal above +12V at turn-off and can destroy it. Striped end to pump
+   positive. Wiring and part number in [deploy/README.md](deploy/README.md)
+4. **Bulk capacitor on the 12V rail** — A 1000µF electrolytic near the SKR's
+   power input absorbs the sag when the pump starts. Put it on the *rail*, not
+   across the pump terminals: a capacitor in parallel with a low-side-switched
+   motor gets shorted through the mosfet every time it turns on
+5. **Label all circuits** — Use tape/labels on busbar pads and fuse holders
+6. **No bare connections** — Use heat shrink, electrical tape, or shrouded connectors
+7. **Check voltage under load** — Monitor Pi voltage; it should not drop below 4.75V
 
 ## Troubleshooting
 
