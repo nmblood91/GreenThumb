@@ -53,6 +53,9 @@
 - Pump circuit fuse: 1A fast-blow (SKR HE0 to pump positive)
 - LED circuit fuse: 2A fast-blow (busbar to strip +12V)
 - Inline fuse holders, 16 AWG leads, one per fuse above
+- Flyback diode for the pump: 1N5822 (3A Schottky), required — see
+  [POWER_SYSTEM.md](POWER_SYSTEM.md)
+- 74AHCT125 level shifter for the LED data line
 - Busbar / power distribution block
 - Wiring harness and cable routing
 - **See [POWER_SYSTEM.md](POWER_SYSTEM.md) for full electrical specifications**

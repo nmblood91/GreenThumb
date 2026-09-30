@@ -155,10 +155,13 @@ number of LEDs you can count.
    mosfet expects a resistive heater; an inductive motor kicks the switched
    terminal above +12V at turn-off and can destroy it. Striped end to pump
    positive. Wiring and part number in [deploy/README.md](deploy/README.md)
-4. **Bulk capacitor on the 12V rail** — A 1000µF electrolytic near the SKR's
-   power input absorbs the sag when the pump starts. Put it on the *rail*, not
-   across the pump terminals: a capacitor in parallel with a low-side-switched
-   motor gets shorted through the mosfet every time it turns on
+4. **Bulk capacitor on the 12V rail — only if you need it.** A 0.2-0.3A pump on
+   a 5A supply does not sag the rail meaningfully, and the SKR already carries
+   bulk capacitance on VIN, so do not fit one by default. Add a 1000µF
+   electrolytic near the SKR's power input only if the Pi reboots or Klipper
+   drops the MCU connection *at the moment the pump starts*. Put it on the
+   *rail*, not across the pump terminals: a capacitor in parallel with a
+   low-side-switched motor is discharged through the mosfet at every turn-on
 5. **Label all circuits** — Use tape/labels on busbar pads and fuse holders
 6. **No bare connections** — Use heat shrink, electrical tape, or shrouded connectors
 7. **Check voltage under load** — Monitor Pi voltage; it should not drop below 4.75V
