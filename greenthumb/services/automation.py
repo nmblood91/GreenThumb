@@ -17,6 +17,11 @@ from greenthumb.models import SensorSample, ZoneSpec, ZoneStatus
 
 logger = logging.getLogger(__name__)
 
+# How often to re-read the outlet sensor while a dose is running.
+DELIVERY_POLL_SECONDS = 1.0
+# Slack for the watcher thread to notice the dose ended and return its verdict.
+DELIVERY_JOIN_SECONDS = 5.0
+
 
 class HardwareBusyError(RuntimeError):
     """Raised when the gantry, pump, or I2C bus is already in use."""
@@ -72,7 +77,7 @@ class GreenThumbAutomation:
         }
         self._last_watered: dict[str, datetime] = {}
         self.history = history or HistoryStore(settings.history_db_path or DEFAULT_DB_PATH)
-        self._supply_present: bool | None = None
+        self._last_delivery: dict[str, object] | None = None
         self._pump_timer: threading.Timer | None = None
         self._pump_lock_held = False
 
@@ -193,12 +198,6 @@ class GreenThumbAutomation:
         return self.sensor_hub.raw_to_percent(sum(window) / len(window))
 
     def _run_watering_cycle(self) -> None:
-        # Once per tick rather than once per zone: the supply serves every zone,
-        # so four identical queries and four identical warnings say nothing more
-        # than one does.
-        if settings.water_sensor_enabled and self.check_water_supply() is not True:
-            return
-
         for zone in self.zones:
             window = self._history.get(zone.sensor_address)
             # Only act on a full window, so neither a single bad reading nor the
@@ -281,36 +280,53 @@ class GreenThumbAutomation:
             self._hardware_lock.release()
 
     def check_water_supply(self) -> bool | None:
-        """Wet/dry/unknown for the supply tube; None when no sensor is configured."""
+        """Wet/dry/unknown at the outlet sensor right now.
+
+        This is a raw read, not a verdict. The outlet line drains between doses,
+        so dry is the normal idle state and means nothing on its own -- only a
+        read taken while the pump is running carries information.
+        """
         if not settings.water_sensor_enabled:
             return None
+        return self.klipper.water_supply_present()
 
-        present = self.klipper.water_supply_present()
-        # Logged on change only: an empty reservoir would otherwise write a line
-        # every tick, for every zone, for as long as it stayed empty.
-        if present != self._supply_present:
-            self._supply_present = present
+    def _watch_delivery(
+        self,
+        duration_seconds: float,
+        verdict: dict[str, bool | None],
+        finished: threading.Event,
+    ) -> None:
+        """Watch the outlet sensor during a dose and record whether water arrived.
+
+        Runs on its own thread because deliver_ml does not return until Klipper
+        finishes the dwell. That is safe: the sensor is read over objects/query,
+        which Klipper answers even while the gcode queue is busy.
+        """
+        # The falling leg has to fill before there is anything to see.
+        finished.wait(timeout=min(settings.delivery_check_delay_seconds, duration_seconds))
+
+        saw_dry = False
+        while True:
+            present = self.klipper.water_supply_present()
             if present is True:
-                logger.info("Water supply restored")
-            elif present is False:
-                logger.warning("Water supply is dry, watering is blocked")
-            else:
-                logger.warning("Water supply sensor unreadable, watering is blocked")
-        return present
+                verdict["delivered"] = True
+                return
+            if present is False:
+                # A definite dry read proves the sensor answers, which is what
+                # separates "no water arrived" from "we could not tell".
+                saw_dry = True
+            # Ends with the dose rather than on a timer, so a dose cut short by
+            # a Klipper error does not hold the watering call open. Always one
+            # read first: the loop is entered before this is checked.
+            if finished.wait(timeout=DELIVERY_POLL_SECONDS):
+                break
+
+        verdict["delivered"] = False if saw_dry else None
 
     def _move_and_water(
         self, zone: ZoneSpec, volume_ml: int | None = None, trigger: str = "auto"
     ) -> dict[str, object]:
         volume = zone.watering_volume_ml if volume_ml is None else max(0, int(volume_ml))
-
-        # Checked before moving: no point travelling to a zone that cannot be
-        # watered. Anything but a confirmed wet line blocks the pump.
-        if settings.water_sensor_enabled and self.check_water_supply() is not True:
-            # Debug, not warning: check_water_supply already logs the state
-            # change, and the reason travels back to the caller in the response.
-            reason = "water supply is dry or unreadable"
-            logger.debug("Not watering %s: %s", zone.zone_id, reason)
-            return {"status": "error", "zone_id": zone.zone_id, "error": reason}
 
         move = self.klipper.move_gantry_absolute(zone.position_mm)
         if not move.get("ok"):
@@ -319,13 +335,54 @@ class GreenThumbAutomation:
             )
             return {"status": "error", "zone_id": zone.zone_id, "error": move.get("error")}
 
-        self.pump.deliver_ml(volume)
-        self._last_watered[zone.zone_id] = datetime.now()
+        verdict: dict[str, bool | None] = {"delivered": None}
+        watcher: threading.Thread | None = None
+        finished = threading.Event()
+        if settings.water_sensor_enabled and volume > 0:
+            duration = volume / max(getattr(self.pump, "flow_ml_per_second", 1.67), 0.01)
+            watcher = threading.Thread(
+                target=self._watch_delivery,
+                args=(duration, verdict, finished),
+                daemon=True,
+            )
+            watcher.start()
+
         try:
-            self.history.record_watering(zone.zone_id, volume, trigger)
+            self.pump.deliver_ml(volume)
+        finally:
+            finished.set()
+
+        if watcher is not None:
+            watcher.join(timeout=DELIVERY_JOIN_SECONDS)
+        delivered = verdict["delivered"]
+
+        if delivered is False:
+            # The failure this whole sensor exists to catch: the pump ran, the
+            # dose was logged, and nothing came out the other end.
+            logger.warning(
+                "Watered %s with %d mL but no water reached the outlet sensor",
+                zone.zone_id,
+                volume,
+            )
+        elif settings.water_sensor_enabled and delivered is None:
+            logger.warning("Could not verify delivery for %s, sensor unreadable", zone.zone_id)
+
+        self._last_watered[zone.zone_id] = datetime.now()
+        self._last_delivery = {
+            "zone_id": zone.zone_id,
+            "at": self._last_watered[zone.zone_id].isoformat(timespec="seconds"),
+            "delivered": delivered,
+        }
+        try:
+            self.history.record_watering(zone.zone_id, volume, trigger, delivered=delivered)
         except Exception:
             logger.exception("Failed to record watering for %s", zone.zone_id)
-        return {"status": "ok", "zone_id": zone.zone_id, "volume_ml": volume}
+        return {
+            "status": "ok",
+            "zone_id": zone.zone_id,
+            "volume_ml": volume,
+            "delivered": delivered,
+        }
 
     def _last_watered_iso(self, zone_id: str) -> str | None:
         last = self._last_watered.get(zone_id)
@@ -348,9 +405,12 @@ class GreenThumbAutomation:
             "app": settings.app_name,
             "movement": self.klipper.status(),
             "lighting": self.leds.status(),
-            "water_supply": {
+            # Reports the last dose, not the line's current state: the outlet
+            # reads dry between doses by design, so "dry right now" is normal
+            # and would be alarming to show.
+            "delivery": {
                 "enabled": settings.water_sensor_enabled,
-                "present": self.check_water_supply(),
+                "last": self._last_delivery,
             },
             "zones": [status.__dict__ for status in zone_status],
         }

@@ -41,12 +41,20 @@ export function Chart({ data, series, markers = [], height = 320, yRange, yLabel
             (u) => {
               const { ctx } = u
               ctx.save()
-              ctx.strokeStyle = 'rgba(125, 200, 255, 0.55)'
               ctx.lineWidth = 1
-              ctx.setLineDash([4, 3])
               for (const marker of markersRef.current) {
                 const x = u.valToPos(marker.t, 'x', true)
                 if (x < u.bbox.left || x > u.bbox.left + u.bbox.width) continue
+                // A dose that delivered nothing is drawn solid red: it should
+                // stand out against the moisture curve that failed to respond
+                // to it, because that pairing is the whole diagnosis.
+                if (marker.delivered === false) {
+                  ctx.strokeStyle = 'rgba(230, 90, 80, 0.85)'
+                  ctx.setLineDash([])
+                } else {
+                  ctx.strokeStyle = 'rgba(125, 200, 255, 0.55)'
+                  ctx.setLineDash([4, 3])
+                }
                 ctx.beginPath()
                 ctx.moveTo(x, u.bbox.top)
                 ctx.lineTo(x, u.bbox.top + u.bbox.height)

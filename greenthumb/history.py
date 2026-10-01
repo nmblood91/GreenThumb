@@ -29,7 +29,11 @@ CREATE TABLE IF NOT EXISTS waterings (
     recorded_at INTEGER NOT NULL,
     zone_id     TEXT NOT NULL,
     volume_ml   INTEGER NOT NULL,
-    trigger     TEXT NOT NULL
+    trigger     TEXT NOT NULL,
+    -- 1 delivered, 0 nothing reached the outlet, NULL not checked. Nullable
+    -- because "we did not look" and "we looked and saw nothing" are different
+    -- answers, and only the second one is a fault.
+    delivered   INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_waterings_time ON waterings(recorded_at);
 """
@@ -69,8 +73,18 @@ class HistoryStore:
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.execute("PRAGMA synchronous=NORMAL")
         self._db.executescript(SCHEMA)
+        self._migrate()
         self._db.commit()
         logger.info("History database ready at %s", self.path)
+
+    def _migrate(self) -> None:
+        """Add columns that CREATE TABLE IF NOT EXISTS cannot add to an old file."""
+        columns = {row["name"] for row in self._db.execute("PRAGMA table_info(waterings)")}
+        if "delivered" not in columns:
+            # Rows written before delivery verification existed are unknown, not
+            # failed, and NULL is what the new column defaults to.
+            self._db.execute("ALTER TABLE waterings ADD COLUMN delivered INTEGER")
+            logger.info("Added waterings.delivered to the existing history database")
 
     def record_readings(self, samples: list[SensorSample], at: int | None = None) -> int:
         """Store one tick's readings. Returns how many were kept."""
@@ -97,14 +111,25 @@ class HistoryStore:
         return len(rows)
 
     def record_watering(
-        self, zone_id: str, volume_ml: int, trigger: str, at: int | None = None
+        self,
+        zone_id: str,
+        volume_ml: int,
+        trigger: str,
+        delivered: bool | None = None,
+        at: int | None = None,
     ) -> None:
         timestamp = int(time.time()) if at is None else at
         with self._lock:
             self._db.execute(
-                "INSERT INTO waterings (recorded_at, zone_id, volume_ml, trigger)"
-                " VALUES (?, ?, ?, ?)",
-                (timestamp, zone_id, int(volume_ml), trigger),
+                "INSERT INTO waterings (recorded_at, zone_id, volume_ml, trigger, delivered)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (
+                    timestamp,
+                    zone_id,
+                    int(volume_ml),
+                    trigger,
+                    None if delivered is None else int(delivered),
+                ),
             )
             self._db.commit()
 
@@ -164,7 +189,7 @@ class HistoryStore:
         since = end - int(hours * 3600)
         with self._lock:
             rows = self._db.execute(
-                "SELECT recorded_at, zone_id, volume_ml, trigger FROM waterings"
+                "SELECT recorded_at, zone_id, volume_ml, trigger, delivered FROM waterings"
                 " WHERE recorded_at >= ? ORDER BY recorded_at",
                 (since,),
             ).fetchall()
@@ -174,6 +199,7 @@ class HistoryStore:
                 "zone_id": row["zone_id"],
                 "volume_ml": row["volume_ml"],
                 "trigger": row["trigger"],
+                "delivered": None if row["delivered"] is None else bool(row["delivered"]),
             }
             for row in rows
         ]

@@ -71,7 +71,7 @@ export function GeneralPanel({ overview, cameraStatus }) {
   const lighting = overview?.lighting
   const colorOrderOptions = lighting?.color_order_options ?? DEFAULT_COLOR_ORDERS
   const chipOptions = lighting?.chip_options ?? []
-  const waterSupply = overview?.water_supply
+  const delivery = overview?.delivery
 
   useEffect(() => {
     setSettings((current) => ({
@@ -236,11 +236,13 @@ export function GeneralPanel({ overview, cameraStatus }) {
           </p>
         )}
 
-        {waterSupply?.enabled && waterSupply.present !== true && (
+        {/* Only the last dose is worth reporting. The outlet line is dry
+            between waterings by design, so live state says nothing. */}
+        {delivery?.enabled && delivery.last && delivery.last.delivered !== true && (
           <p className="field-hint warning">
-            {waterSupply.present === false
-              ? 'Water supply is dry — watering is blocked until the reservoir is refilled.'
-              : 'Water supply sensor is not responding — watering is blocked.'}
+            {delivery.last.delivered === false
+              ? `No water reached the outlet on the last dose (${delivery.last.zone_id}, ${delivery.last.at}). Check the reservoir, then the line for a clog or an airlock.`
+              : `Could not verify the last dose (${delivery.last.zone_id}) — the outlet sensor did not respond.`}
           </p>
         )}
 

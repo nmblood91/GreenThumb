@@ -163,10 +163,16 @@ function App() {
       // finished, which is over a minute, so say so rather than looking hung.
       setStatus(`Watering ${label}, this takes a minute...`)
       const result = await fetchJson(`/water/${zoneId}`, { method: 'POST' })
+      // delivered is null when no outlet sensor is fitted, so only false is a
+      // failure — the pump ran and nothing came out the other end.
+      const delivery =
+        result?.delivered === false
+          ? ' but no water reached the outlet — check the reservoir and the line'
+          : ''
       setStatus(
         result?.status === 'error'
           ? `Water ${label}: failed - ${result.error}`
-          : `Watered ${label} with ${result.volume_ml} mL.`,
+          : `Watered ${label} with ${result.volume_ml} mL${delivery}.`,
       )
       await loadDashboard()
     } catch (error) {

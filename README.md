@@ -136,7 +136,7 @@ and `spidev`, so they run on a development machine with no hardware attached.
 | Gantry | Real — Klipper over its Unix socket |
 | Pump | Real — Klipper `output_pin` on the SKR's HE0 MOSFET |
 | LEDs | Real — WS2812B/WS2815/GS8208/WS2811 over SPI, strip type selectable in settings |
-| Water level sensor | Real — non-contact sensor on the supply tube, via Klipper |
+| Water level sensor | Real — non-contact sensor on the outlet tube, via Klipper; verifies a dose rather than gating it |
 | Camera | Not built — the UI controls for it are inert |
 
 Automatic watering is disabled by default (`auto_watering_enabled` in

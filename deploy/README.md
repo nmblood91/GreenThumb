@@ -329,9 +329,13 @@ Vertical order matters more than anything else about the water path. Top to
 bottom: **nozzle, pump, reservoir.**
 
 ```
-   NOZZLE  ──────────── highest point in the system
-     │                  (over the pot, on the gantry)
-     │   outlet line
+   HIGH POINT  ──────── top of the outlet run
+     │      ╲
+     │       ╲  falling leg  ──[ level sensor clamps here ]
+     │        ╲
+     │       NOZZLE  ──────── over the pot
+     │
+     │   outlet line (rising)
      │
    PUMP  ────────────── above the reservoir water line
      │
@@ -364,44 +368,72 @@ Keep the suction line short and steadily rising, with no high spots to trap air.
 Suction joints are far less forgiving than pressure joints: a pinhole that would
 never drip on the outlet side will break prime on the inlet side.
 
-### Reservoir with a low outlet
+### Reservoir, and the suction tube
 
-**Use a tank with a bottom or side bulkhead outlet, not a tube dipped in from
-the top.** This is a purchasing decision, not an assembly one, so it is worth
-settling before ordering.
+A tank with a **bottom or side bulkhead outlet** is the tidier option: the tube
+leaves at the lowest point and stays wet whenever there is water above it. Worth
+looking for — *bulkhead fitting*, *hydroponic reservoir with drain*, or any tank
+sold with a spigot. A plain tank plus an aftermarket bulkhead fitting works too.
 
-With a low outlet, the tube leaves at the tank's lowest point and gravity keeps
-that section wet whenever there is water above it. The level sensor clamped
-there then reports **reservoir level** — the thing a human can actually fix —
-and a refill clears the blocked state immediately.
+**A tube simply dipped in from the top is fine.** It needs no fittings and
+pumps identically. Two things to watch, both about prime rather than sensing:
 
-With a tube dipped in from the top, every reachable section of tube sits above
-the water line. The sensor can no longer separate "tank has water" from "line is
-still primed", and a lost prime will not clear on a refill, because topping up a
-tank does not re-wet a high point. The system would sit there refusing to water
-a full reservoir.
+- **The rim crossing is a high spot**, which is exactly what a suction line is
+  not supposed to have. Keep it as low as you can — through a hole in the lid
+  rather than over the edge — and keep the whole run short.
+- **Weight the intake end** so it stays at the bottom. A tube that floats up as
+  the tank drains starts sucking air well before the tank is empty.
 
-Search terms that tend to find the right thing: *bulkhead fitting*, *hydroponic
-reservoir with drain*, or any tank sold with a spigot or bottom port. A plain
-tank plus an aftermarket bulkhead fitting works too, and is often cheaper than
-one sold pre-drilled.
+Note that with a dipped tube there is nowhere useful to sense *reservoir level*:
+every reachable section of tube sits above the water line. That is why the
+sensor lives on the outlet instead, described next.
 
 ## Wiring the Water Level Sensor
 
 A non-contact liquid sensor (CQRobot CQRSENYW001 or similar) clamped around the
-supply tube lets the system refuse to water when the reservoir is empty, instead
-of running the pump and logging a dose that delivered nothing.
+**outlet** tube confirms that a dose actually delivered water, instead of the
+system running the pump and logging a dose that delivered nothing.
 
-**Mount it upstream and as low as possible** — on the first section of tube
-outside the reservoir, not up at the pump inlet.
+**Clamp it on the falling leg — after the high point, before the nozzle.**
 
-Upstream because these sensors detect presence, not flow: a downstream sensor
-would read the standing water in the outlet line as success even with a dead
-pump. Low because the pump inlet is the highest point of the supply line, so a
-sensor there would report a momentary lost prime as an empty reservoir — and
-would not recover on a refill. See [Plumbing layout](#plumbing-layout) above for
-why, and for why the reservoir needs a low outlet for this reading to mean
-anything.
+### Why it verifies rather than blocks
+
+This sensor does not gate watering. It cannot: the falling leg drains into the
+pot after every dose, so it reads dry whenever the pump is idle, and a pre-check
+would refuse every watering forever.
+
+Instead the software starts the pump, watches the sensor a few seconds in, and
+records whether water arrived. Running a peristaltic pump dry for a few seconds
+is harmless, so there is nothing to protect against by checking first. What you
+get in exchange is a better question answered: not "is water available at the
+inlet" but "did water reach the plant" — which also catches a clog, a kink, a
+split pump tube, or a pump turning with nothing engaged.
+
+A dose that delivers nothing is logged as a warning, flagged in the History tab
+as a solid red marker, and reported in the status bar. Nothing is blocked; the
+next dose runs and re-checks, so a refilled tank clears the condition by itself.
+
+### Where exactly to clamp it
+
+The placement is fussier than it looks, because half the outlet run holds water
+permanently:
+
+- **Rising leg (pump → high point): stays full.** The stopped pump seals the
+  bottom and water cannot climb over the peak to escape. A sensor here reads wet
+  forever and tells you nothing.
+- **Falling leg (high point → nozzle): drains.** It siphons into the pot when
+  the pump stops and refills on the next dose. This is the only section with a
+  signal in it.
+
+**Do not fit an anti-drip fitting on the falling leg.** It exists to stop
+exactly the drain-back this depends on. The cost of leaving it out is a few mL
+dribbling into the pot it was already headed for.
+
+Sizing: about 7 mL of 4 mm ID tube fills in roughly four seconds at the pump's
+flow rate, against a 500 ms sensor response and a 60-second dose, so the timing
+is not tight. `delivery_check_delay_seconds` in `greenthumb/config.py` sets how
+long to wait before the first look; raise it if the falling leg is unusually
+long.
 
 **Set the board's dial switch to 3.3V output before wiring.** The SKR's endstop
 inputs are 3.3V; at the 5V setting the sensor would overdrive the pin. With it at
@@ -430,8 +462,14 @@ A full tube must report detected. If it reads backwards, change `switch_pin` to
 `^!PC1` in `printer.cfg` and re-run the install script rather than rewiring.
 
 Once confirmed, set `WATER_SENSOR_ENABLED=true` in `/opt/greenthumb/.env` and
-restart the API. While enabled, a dry **or unreadable** line blocks the pump: a
-sensor declared present but not answering is a fault, not a reason to pump blind.
+restart the API.
+
+Enabling it changes nothing about when watering happens — it only adds the
+check afterwards. Three outcomes are recorded per dose: **delivered** (the line
+read wet during the run), **not delivered** (it read dry throughout, logged as a
+warning and drawn in red on the chart), and **unknown** (the sensor never
+answered). Unknown is deliberately distinct from a failure: "we did not look" and
+"we looked and saw nothing" are different problems.
 
 ## Wiring the LED Strip
 
