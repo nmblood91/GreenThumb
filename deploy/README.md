@@ -125,6 +125,19 @@ Re-run the install script instead of pulling when the change touches
 `printer.cfg.example`, the systemd units, or the nginx config — those are copied
 out of the repo at install time, so a pull alone does not apply them.
 
+**A frontend change also needs a build, not just a pull.** `frontend/dist` is
+gitignored and built here, so a pull brings new source without new output. Either
+re-run the install script or build it directly:
+
+```bash
+cd /opt/greenthumb/frontend && npm run build
+```
+
+Build output used to be committed, which meant every install rewrote tracked
+files and left the checkout permanently dirty — and then the next `git pull`
+aborted with "local changes would be overwritten by merge". If you hit that on an
+older checkout, see **Recovering a diverged checkout** below.
+
 **Re-running regenerates `printer.cfg` from the template.** The template is the
 source of truth, which is how a config fix in the repo reaches the Pi, but it
 means local tuning is replaced. Anything that differs is backed up first to
@@ -140,6 +153,53 @@ nano ~/printer_data/config/printer.cfg
 sudo systemctl restart klipper
 tail -20 ~/klipper_logs/klippy.log
 ```
+
+## Recovering a diverged checkout
+
+If `git pull` aborts with "Your local changes to the following files would be
+overwritten by merge", or lists untracked files it refuses to overwrite, the
+checkout has drifted from the repo. Two things cause it: build output that used
+to be committed and rebuilt in place, and files copied onto the Pi by hand
+instead of pulled, which git has never heard of.
+
+The repo is the source of truth, so the fix is to discard whatever is local. Take
+a snapshot first — `.env` and `data/` are gitignored, so the git commands below
+leave them alone, but they are the two things worth keeping:
+
+```bash
+cd /opt/greenthumb
+tar czf ~/greenthumb-pi-snapshot.tar.gz .env data
+```
+
+Look before resetting. The second command is a dry run that lists exactly what
+would be deleted:
+
+```bash
+git status --short
+git clean -nd
+```
+
+Everything listed should be build output or files that exist in the repo anyway.
+If something there was genuinely written on the Pi, save it before continuing.
+
+```bash
+git clean -fd
+git fetch origin
+git reset --hard origin/main
+git log --oneline -1
+```
+
+`clean -fd` removes untracked files but not ignored ones, so `.venv`, `.env`,
+`data/`, `logs/` and `node_modules/` survive. Then rebuild the derived files,
+since a reset only restores what git tracks:
+
+```bash
+sudo bash /opt/greenthumb/deploy/pi/install-green-thumb.sh
+```
+
+Prefer this over `rm -rf /opt/greenthumb` and a fresh clone. It reaches the same
+tracked-file state, while `rm -rf` would take `.env` and the history database
+with it.
 
 ## Service behavior
 

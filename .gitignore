@@ -8,3 +8,8 @@ logs/
 data/
 *.log
 node_modules/
+
+# Built on the Pi by the install script, and served from there by nginx.
+# Committing it meant every install rewrote tracked files, which left the
+# checkout permanently dirty and made the next `git pull` abort.
+frontend/dist/
