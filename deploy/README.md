@@ -155,6 +155,28 @@ Switch COM ──→ X-STOP  GND
 Switch NC  ──→ X-STOP  signal (PC0)
 ```
 
+X-STOP is a 2-pin connector, and a mechanical switch is a passive contact:
+`^PC0` enables the MCU's internal pull-up, so the pin idles high on its own and
+the switch only has to pull it to ground. Nothing here needs power.
+
+**Most limit switches sold for printers are 3-pin, so one wire comes off.**
+Which one depends on the board, and the S / G / V silkscreen is not a reliable
+guide — on many of them it is generic connector labelling over a straight
+passthrough of the microswitch's own C / NO / NC terminals, with no LED and no
+supply pin at all. Trace it before cutting: multimeter on continuity, work the
+lever, and find the pair that is **closed with the lever released**. That is
+common and NC, and those are the two you keep.
+
+A common case is S=C, G=NO, V=NC, which means keeping the *outer* two pins and
+removing the middle one. Lift the retention tab in the connector housing with a
+pin and slide the unwanted contact out rather than re-crimping.
+
+**Prefer NC over NO** when the switch offers both. A broken wire or an unseated
+connector then reads the same as triggered, so homing fails immediately. Wired
+normally-open, a broken wire is indistinguishable from a healthy untriggered
+switch, and the first sign of trouble is the carriage driving into the end of
+the rail.
+
 `printer.cfg` uses `endstop_pin: ^!PC0`, which expects a **normally-closed**
 switch, matching Y and Z. Verify before homing:
 
