@@ -23,7 +23,11 @@ dir_pin: PB12
 enable_pin: !PB14
 microsteps: 16
 rotation_distance: 40
-endstop_pin: ^!PC0
+# Normally-closed switch. ^ enables the internal pull-up; no ! because a closed
+# contact already pulls the pin low, which is the untriggered reading. ^!PC0
+# would be the normally-OPEN config -- the inverse of what this build wants, and
+# it would give up the fail-safe described in deploy/README.md.
+endstop_pin: ^PC0
 position_min: 0
 position_max: 980
 position_endstop: 980

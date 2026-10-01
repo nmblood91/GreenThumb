@@ -247,22 +247,54 @@ A common case is S=C, G=NO, V=NC, which means keeping the *outer* two pins and
 removing the middle one. Lift the retention tab in the connector housing with a
 pin and slide the unwanted contact out rather than re-crimping.
 
+**That layout is the one confirmed on this build** — S common, V the NC contact —
+so S and V are the pair to keep and G is the wire that comes off. Still trace
+your own module rather than trusting this: it is a property of the module, not of
+the board, and a different batch can differ.
+
 **Prefer NC over NO** when the switch offers both. A broken wire or an unseated
 connector then reads the same as triggered, so homing fails immediately. Wired
 normally-open, a broken wire is indistinguishable from a healthy untriggered
 switch, and the first sign of trouble is the carriage driving into the end of
 the rail.
 
-`printer.cfg` uses `endstop_pin: ^!PC0`, which expects a **normally-closed**
-switch, matching Y and Z. Verify before homing:
+`printer.cfg` uses `endstop_pin: ^PC0`, which expects a **normally-closed**
+switch. The polarity convention is worth getting straight, because it is easy to
+state backwards — "TRIGGERED" is a logical 1, `^` is the pull-up, and `!` inverts:
+
+| Config | Switch | Released | Pressed |
+|---|---|---|---|
+| `^PC0` | **NC** | closed → pin low → `open` | open → pull-up high → `TRIGGERED` |
+| `^!PC0` | **NO** | open → high → inverted → `open` | closed → low → inverted → `TRIGGERED` |
+
+So the bare `^PC0` is the normally-closed config and `^!PC0` is the
+normally-open one. Verify before homing:
 
 ```bash
 python3 /opt/greenthumb/deploy/pi/send-gcode.py QUERY_ENDSTOPS
 ```
 
 Released it must read `stepper_x:open`; held down by hand, `stepper_x:TRIGGERED`.
-If those are backwards the switch is wired normally-open — use `^PC0` instead of
-`^!PC0`, rather than rewiring.
+
+**If those are backwards, you are on the switch's normally-open pair** — move the
+signal wire to the pair that is closed with the lever released, rather than
+adding `!` to the pin. Adding `!` makes the reading correct and silently gives up
+the fail-safe below, which is the whole reason for wiring NC.
+
+Then confirm the fail-safe itself, by unplugging the connector with the lever
+released:
+
+```bash
+python3 /opt/greenthumb/deploy/pi/send-gcode.py QUERY_ENDSTOPS
+```
+
+Unplugged it must read `stepper_x:TRIGGERED`. A disconnected switch reading as
+triggered is the point: homing fails immediately instead of driving the carriage
+into the end of the rail.
+
+Y and Z read `TRIGGERED` and should be ignored. They are placeholder axes with
+nothing wired to PC15 and PC14, and an unconnected pin with a pull-up reads high
+— which is deliberate, so a stray `G28 Y` fails fast.
 
 **Calibrating `position_endstop`.** X960 is the last usable position and the
 switch sits past it, so homing can retract clear of the switch instead of resting
@@ -672,7 +704,7 @@ parked, because holding current is chopped too. The pump is the milder one: a
 0.2-0.3A brushed motor with two switching events per dose.
 
 The endstop would normally be the victim, except that **the way it is wired keeps
-it out of trouble**. `endstop_pin: ^!PC0` with an NC switch means the untriggered
+it out of trouble**. `endstop_pin: ^PC0` with an NC switch means the untriggered
 state is *switch closed*, so PC0 is tied to ground through a few ohms of contact
 resistance for the whole approach. Capacitive coupling from a 12V bundle cannot
 lift that to a logic high. The high-impedance state — the MCU's internal pull-up,
@@ -697,12 +729,16 @@ almost none. So:
 
 ### The NC wiring is load-bearing
 
-[Wiring the X Endstop](#wiring-the-x-endstop) offers `^PC0` as the fix when
-`QUERY_ENDSTOPS` reads inverted. That works as a polarity fix, but it leaves the
-line sitting on the internal pull-up while idle, and in a shared bundle that is
-much more marginal than the grounded-through-the-switch arrangement above. If the
-reading is backwards, go back and re-trace the switch for the pair that is closed
-with the lever released, rather than flipping the config.
+When `QUERY_ENDSTOPS` reads inverted, the tempting fix is to add `!` to the pin
+and move on. It does make the reading correct — `^!PC0` is the normally-open
+config — but it costs both properties this section depends on. Wired NO, the pin
+floats on the internal pull-up for the whole homing approach instead of being
+clamped to ground, which is the susceptible arrangement in a shared bundle; and a
+broken wire becomes indistinguishable from a healthy untriggered switch.
+
+So if the reading is backwards, re-trace the switch for the pair that is closed
+with the lever released and move the signal wire there, rather than flipping the
+config.
 
 ### The one adjacency worth watching
 
