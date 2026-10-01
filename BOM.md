@@ -16,7 +16,9 @@
 - Wiring harness and JST/XH connectors
 - Power supply for motion system
 - Emergency stop / fuse protection if required
-- Sensorless homing configuration and tuning
+- Mechanical limit switch for X homing — wired normally-closed. Printer endstop
+  modules are usually sold 3-pin; one wire comes off. See
+  [deploy/README.md](deploy/README.md) for which
 
 ## Compute and monitoring
 - Raspberry Pi 4 or equivalent
@@ -33,14 +35,19 @@
 
 ## Watering system
 - 12V peristaltic pump
-- **Reservoir with a bottom or side bulkhead outlet** — not a tank you dip a
-  tube into from the top; the level sensor cannot give an honest reading that
-  way. A plain tank plus an aftermarket bulkhead fitting also works
+- Reservoir. A **bottom or side bulkhead outlet** is the tidier option — the tube
+  leaves at the lowest point and stays wet. A plain tank you dip a tube into from
+  the top pumps identically; feed it through a hole in the lid rather than over
+  the rim, since the rim crossing is a high spot in a suction line
+- Weight for the intake end of a dipped tube, so it does not float up and start
+  sucking air as the tank drains
 - Tubing, sized to the level sensor's 0-13 mm sensing range
 - Water delivery nozzle — mounts on the gantry, and must sit above the
   reservoir water line
-- Check valves or anti-drip fittings
-- Hose fittings and secure mounting
+- Hose fittings and secure mounting. **No anti-drip fitting on the outlet's
+  falling leg** — the delivery check depends on that section draining back
+  between doses, which is exactly what an anti-drip fitting prevents. A stopped
+  peristaltic pump already occludes the tube, so there is no check valve to add
 - Non-contact liquid level sensor (CQRobot CQRSENYW001 or similar)
 - Optional flow sensor for diagnostics
 
@@ -70,7 +77,7 @@ inverted.
 - **See [POWER_SYSTEM.md](POWER_SYSTEM.md) for full electrical specifications**
 
 ## Software stack
-- Klipper/Mainsail on Raspberry Pi
+- Klipper on Raspberry Pi
 - Python FastAPI service
 - Local dashboard
 - Sensor and watering service logic

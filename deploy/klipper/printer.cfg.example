@@ -54,21 +54,44 @@ gcode:
 [force_move]
 enable_force_move: True
 
-# Non-contact liquid sensor clamped on the supply tube between reservoir and
-# pump inlet. Declared as a filament sensor purely because that exposes the pin
-# state through objects/query; runout handling is off, the watering logic owns
-# the decision. Flip to ^!PC1 if a full tube reads as empty.
+# Non-contact liquid sensor clamped on the outlet tube's falling leg -- after the
+# high point, before the nozzle. That is the only stretch of the water path that
+# drains between doses, so it is the only one with a signal in it; the rising leg
+# is sealed by the stopped pump and reads wet forever. It verifies that a dose
+# delivered rather than gating watering -- see deploy/README.md.
+#
+# Declared as a filament sensor purely because that exposes the pin state through
+# objects/query; runout handling is off, the watering logic owns the decision.
+# Flip to ^!PC1 if a full tube reads as empty.
+#
+# This owns Y-STOP (PC1). stepper_y below is a placeholder and gives the pin up.
 [filament_switch_sensor water_supply]
 switch_pin: ^PC1
 pause_on_runout: False
 
+# Y and Z are placeholders with no motor and no switch wired to them. The gantry
+# has one axis, but kinematics: cartesian requires all three stepper sections to
+# exist, so they are declared and never used.
+#
+# Their endstop pins point at the unused E0-STOP (PC15) and PROBE (PC14) headers
+# rather than at Y-STOP and Z-STOP. stepper_y used to claim ^!PC1, which the water
+# sensor also needs; Klipper resolves an endstop and a button as different share
+# types on the same pin and refuses the whole config with "pin PC1 used multiple
+# times in config". Keeping the placeholders off PC1 and PC2 leaves Y-STOP to the
+# water sensor and Z-STOP genuinely free as a spare input. Nothing is plugged into
+# a placeholder pin, so it only has to be valid and unclaimed.
+#
+# The pullup is deliberately not inverted here, unlike X. An unconnected pin with
+# a pullup reads high, which these two read as already triggered, so a stray G28 Y
+# or G28 Z fails after a 5 mm retract instead of running a phantom 200 mm traverse
+# first. Neither axis should be homed at all -- the motion API will let you try.
 [stepper_y]
 step_pin: PB10
 dir_pin: PB2
 enable_pin: !PB11
 microsteps: 16
 rotation_distance: 40
-endstop_pin: ^!PC1
+endstop_pin: ^PC15
 position_min: 0
 position_max: 200
 position_endstop: 0
@@ -86,7 +109,7 @@ dir_pin: PC5
 enable_pin: !PB1
 microsteps: 16
 rotation_distance: 8
-endstop_pin: ^!PC2
+endstop_pin: ^PC14
 position_min: 0
 position_max: 200
 position_endstop: 0

@@ -35,7 +35,11 @@ class KlipperClient:
         }
 
     def water_supply_present(self) -> bool | None:
-        """True if the supply tube reads wet, None if the sensor cannot be read."""
+        """True if the outlet tube reads wet, None if the sensor cannot be read.
+
+        The Klipper object is still named water_supply, which printer.cfg and
+        this query have to agree on; the sensor itself moved to the outlet.
+        """
         response = self._send_command(
             "objects/query",
             {"objects": {"filament_switch_sensor water_supply": ["filament_detected"]}},

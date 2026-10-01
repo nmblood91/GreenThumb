@@ -2,12 +2,34 @@
 
 GreenThumb is a Python-based software foundation for a smart indoor planter / grow frame that combines:
 - a motion system driven by a BTT SKR Mini E3 V2 and Klipper
-- a Raspberry Pi host running Mainsail / Klipper
+- a Raspberry Pi host running Klipper
 - four capacitive soil sensors on an I2C hub
 - per-zone watering and lighting control
 - a Pi camera pipeline for monitoring and timelapse capture
 
 This repository is intentionally structured as a product-ready foundation for a future commercial offering, not just a one-off prototype.
+
+## Documentation
+
+**Building and wiring one**
+
+| Document | Covers |
+|---|---|
+| [deploy/README.md](deploy/README.md) | Flashing the SKR, Pi setup, and the wiring for every subsystem — endstop, pump, water level sensor, soil sensors, LED strip — plus how to route the harness |
+| [POWER_SYSTEM.md](POWER_SYSTEM.md) | 12V busbar, fuse sizing and why each rating was chosen, power budget |
+| [SENSOR_WIRING.md](SENSOR_WIRING.md) | Soil sensor I2C addressing and the per-zone address mapping |
+| [BOM.md](BOM.md) | Parts list |
+
+**How it behaves**
+
+| Document | Covers |
+|---|---|
+| [HOW_WATERING_WORKS.md](HOW_WATERING_WORKS.md) | The watering rules and the reasoning, in plain language |
+| [frontend/README.md](frontend/README.md) | Web UI build and layout |
+
+**Product direction**
+
+[PRODUCT_SPEC.md](PRODUCT_SPEC.md) · [ROADMAP.md](ROADMAP.md) · [COMMERCIAL_STRATEGY.md](COMMERCIAL_STRATEGY.md) · [PRIVACY_SECURITY_SPEC.md](PRIVACY_SECURITY_SPEC.md)
 
 ## Product concept
 
@@ -15,7 +37,7 @@ The system is a modular smart planter based on a modified IKEA VITTSJÖ frame wi
 - black-brown melamine lower shelf and glass upper shelf
 - 1000 mm 2020 extrusion rail mounted to the rear uprights
 - GT2 belt + pulley drive powered by a NEMA 17 stepper
-- sensorless homing on the motion board
+- homing against a mechanical endstop at the motor end of the rail
 - addressable LED strip for lighting effects and per-plant zones
 - 12V peristaltic pump for controlled watering
 

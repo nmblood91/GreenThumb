@@ -9,7 +9,7 @@ GreenThumb is a smart indoor planter system built around:
 - black-brown melamine shelf at the bottom and glass on top
 - 1000 mm 2020 extrusion rail mounted to the rear uprights
 - GT2 belt and pulley drive system powered by a NEMA 17 stepper
-- sensorless "crash homing" configured on the motion board
+- homing against a mechanical endstop at the motor end of the rail
 - four capacitive soil moisture sensors with unique I2C addresses
 - addressable LED lighting for targeted plant lighting and ambient effects
 - 12V peristaltic pump with watering nozzle for controlled fluid delivery
@@ -50,7 +50,7 @@ The business model should be framed around selling the full system, not just cod
 - firmware update and diagnostic tooling
 
 ### Host software layer
-- Raspberry Pi running Klipper/Mainsail
+- Raspberry Pi running Klipper
 - Python service for automation and hardware orchestration
 - local API for zone control, watering, LEDs, and motion
 - sensor polling and health checks

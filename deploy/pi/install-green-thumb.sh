@@ -51,6 +51,19 @@ sudo apt install -y git python3-venv python3-pip nginx curl
 echo "Installing build dependencies..."
 sudo apt install -y python3-dev libffi-dev build-essential libncurses-dev libusb-dev avrdude gcc-arm-none-eabi binutils-arm-none-eabi swig i2c-tools
 
+# The checkout has to exist before anything below reads a template out of it.
+# The documented flow clones it as pi first (see deploy/README.md); this is the
+# fallback for running the script from a copied-in file, and it has to come
+# before printer.cfg is generated rather than after.
+if [ ! -d /opt/greenthumb ]; then
+  sudo mkdir -p /opt/greenthumb
+  sudo chown pi:pi /opt/greenthumb
+  # Clone as pi rather than root. A later chown -R repairs the ownership either
+  # way, but cloning as the owning user is what deploy/README.md documents and
+  # leaves nothing to repair.
+  sudo -u pi git clone --depth 1 https://github.com/nmblood91/GreenThumb.git /opt/greenthumb
+fi
+
 # Create printer_data and log directories
 sudo -u pi mkdir -p /home/pi/printer_data/config /home/pi/printer_data/gcodes /home/pi/klipper_logs
 
@@ -80,15 +93,31 @@ if [ -z "$KLIPPER_DEVICE" ]; then
   echo ""
 fi
 
-# Generate printer.cfg from template with actual device ID
+# Generate printer.cfg from template with actual device ID.
+#
+# The template is the source of truth, so this overwrites the live config. That
+# is deliberate -- it is how a config fix in the repo reaches the Pi -- but
+# position_endstop is meant to be measured against your own switch mounting, so
+# back up anything that differs before replacing it rather than discarding it
+# silently. Nothing is written when the generated file already matches, so
+# re-running the script does not pile up backups.
+PRINTER_CFG=/home/pi/printer_data/config/printer.cfg
 if [ -n "$KLIPPER_DEVICE" ]; then
   sed "s|serial: /dev/serial/by-id/usb-Klipper_xxx|serial: /dev/serial/by-id/$KLIPPER_DEVICE|" /opt/greenthumb/deploy/klipper/printer.cfg.example > /tmp/printer.cfg
-  sudo -u pi cp /tmp/printer.cfg /home/pi/printer_data/config/printer.cfg
+  if [ -f "$PRINTER_CFG" ] && ! cmp -s /tmp/printer.cfg "$PRINTER_CFG"; then
+    PRINTER_CFG_BACKUP="$PRINTER_CFG.$(date +%Y%m%d-%H%M%S).bak"
+    sudo -u pi cp "$PRINTER_CFG" "$PRINTER_CFG_BACKUP"
+    echo "⚠️  Existing printer.cfg differed from the template; backed up to:"
+    echo "    $PRINTER_CFG_BACKUP"
+    echo "    Re-apply any local tuning with:"
+    echo "    diff \"$PRINTER_CFG_BACKUP\" \"$PRINTER_CFG\""
+  fi
+  sudo -u pi cp /tmp/printer.cfg "$PRINTER_CFG"
   echo "✓ Generated printer.cfg with device serial ID"
 else
   # Fallback: copy template as-is if device not detected yet
-  if [ ! -f /home/pi/printer_data/config/printer.cfg ]; then
-    sudo -u pi cp /opt/greenthumb/deploy/klipper/printer.cfg.example /home/pi/printer_data/config/printer.cfg
+  if [ ! -f "$PRINTER_CFG" ]; then
+    sudo -u pi cp /opt/greenthumb/deploy/klipper/printer.cfg.example "$PRINTER_CFG"
   fi
 fi
 
@@ -98,15 +127,12 @@ if ! command -v node >/dev/null 2>&1; then
   sudo apt install -y nodejs
 fi
 
-cd /opt || exit 1
-if [ ! -d "/opt/greenthumb" ]; then
-  sudo git clone --depth 1 https://github.com/nmblood91/GreenThumb.git /opt/greenthumb
-fi
-
 cd /opt/greenthumb
 sudo mkdir -p /opt/greenthumb/logs
 # The installer runs as root, so without this the checkout is root-owned and
-# pi cannot pull updates or run the helper scripts.
+# pi cannot pull updates or run the helper scripts. Repeated after the venv and
+# npm build below, which run as root and would otherwise leave .venv and
+# node_modules root-owned.
 sudo chown -R pi:pi /opt/greenthumb
 
 # Create .env from template if it doesn't exist
@@ -126,6 +152,11 @@ cd /opt/greenthumb/frontend
 # build. install resolves the right platform package.
 npm install
 npm run build
+
+# venv and npm both ran as root, so hand the tree back to pi before anything
+# below touches git as pi. A root-owned .venv also means a later `pip install`
+# as pi fails for no visible reason.
+sudo chown -R pi:pi /opt/greenthumb
 
 # That resolution rewrites package-lock.json, which leaves the checkout dirty
 # and makes the next git pull refuse to fast-forward. The churn is per-platform

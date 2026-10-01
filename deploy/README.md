@@ -101,7 +101,7 @@ For a clean installation with the latest OS, start here:
    ```
    This hammers every address for two minutes and reports an error rate each.
    Intermittent I2C trouble is invisible in a single read and easy to mistake for
-   a flaky sensor months later — see **I2C cable length** below.
+   a flaky sensor months later — see **Wiring the Soil Sensors** below.
 
 8. **Open the web UI**:
    - Open `http://greenthumb.local` in your browser
@@ -124,6 +124,22 @@ script.
 Re-run the install script instead of pulling when the change touches
 `printer.cfg.example`, the systemd units, or the nginx config — those are copied
 out of the repo at install time, so a pull alone does not apply them.
+
+**Re-running regenerates `printer.cfg` from the template.** The template is the
+source of truth, which is how a config fix in the repo reaches the Pi, but it
+means local tuning is replaced. Anything that differs is backed up first to
+`~/printer_data/config/printer.cfg.<timestamp>.bak`, and the script prints the
+`diff` command to recover from it. `position_endstop` is the one you will most
+likely have changed, since it is measured against your own switch mounting.
+
+If you would rather not have it touched at all, edit the live config by hand and
+restart Klipper instead of re-running the installer:
+
+```bash
+nano ~/printer_data/config/printer.cfg
+sudo systemctl restart klipper
+tail -20 ~/klipper_logs/klippy.log
+```
 
 ## Service behavior
 
@@ -301,7 +317,32 @@ on the MCU and a dropped connection cannot strand the pump running.
 
 See [POWER_SYSTEM.md](../POWER_SYSTEM.md) for complete busbar and fusing specifications.
 
-## I2C cable length
+## Wiring the Soil Sensors
+
+Four Adafruit STEMMA soil moisture sensors hang off a passive I2C hub on the Pi's
+**Bus 1**. Each needs a unique address; addressing, the `.env` setting and the
+per-zone mapping are in [SENSOR_WIRING.md](../SENSOR_WIRING.md).
+
+### Pi header pins
+
+```
+Hub red (3.3V) ----> Pin 1   (or pin 17)
+Hub blue (SDA) ----> Pin 3   (GPIO 2)
+Hub yellow (SCL) --> Pin 5   (GPIO 3)
+Hub black (GND) ---> Pin 6   (or any GND: 9, 14, 20, 25, 30, 34, 39)
+```
+
+Bus 1 is what `i2cdetect -y 1` queries and what the install script's
+`dtparam=i2c_arm_baudrate` applies to. Nothing else in the build touches these
+pins — the LED data line is GPIO10 (pin 19) and the water level sensor takes 5V
+from pin 2.
+
+**Power the sensors from 3.3V, not 5V.** The STEMMA boards and the Pi's I2C pins
+are both 3.3V parts, and the pull-ups discussed below reference whatever the
+sensors are fed. Feeding them 5V puts 5V on SDA and SCL through those pull-ups,
+which the Pi's pins are not tolerant of.
+
+### Cable length and bus capacitance
 
 The soil sensors hang off a hub tree rather than home runs back to the Pi. A
 representative layout is four 150 mm sensor drops into two sub-hubs, 400 mm from
@@ -467,7 +508,15 @@ Sensor GND (black) ----> common ground, shared with the SKR
 Sensor OUT (green) ----> Y-STOP signal pin (PC1)
 ```
 
-Z-STOP is the spare if Y-STOP is taken. The sensor senses through 0-13 mm, so
+Z-STOP (PC2) is the spare if Y-STOP is taken. Both are free because the
+`stepper_y` and `stepper_z` sections in `printer.cfg` are placeholders — a
+single-axis gantry still needs all three for `kinematics: cartesian` — and their
+endstop pins are pointed at the unused E0-STOP and PROBE headers to keep them out
+of the way. Leave them there: pointing `stepper_y` back at PC1 collides with this
+sensor, and Klipper rejects the whole config with "pin PC1 used multiple times in
+config" rather than picking one.
+
+The sensor senses through 0-13 mm, so
 check your tube's outer diameter falls inside that, and adjust the sensitivity
 pot if the board has one.
 
@@ -538,6 +587,92 @@ but either way the strip's supply must not touch the Pi's pins.
 If red and green come out swapped, change **LED colour order** in settings.
 Selecting a strip type resets that order to the one that chip normally uses, so
 choose the type first and adjust the order afterwards.
+
+## Harness routing
+
+Dress the wiring as **two groups that do not run alongside each other**:
+
+```
+  POWER / MOTION  (may share one bundle)      SIGNAL  (separate runs)
+  ────────────────────────────────────        ──────────────────────────
+  stepper motor leads                         I2C soil sensor tree
+  pump power (HE0 pair)                       LED data line to GPIO10
+  X endstop pair (X-STOP)                     camera ribbon
+```
+
+Crossing between groups at right angles is fine. Running parallel for any
+distance is what causes trouble.
+
+### Why the first group can share a bundle
+
+The aggressor is the stepper leads, not the pump. With `stealthchop_threshold:
+999999` the TMC2209 sits in stealthChop permanently — roughly 23 kHz voltage PWM
+at `run_current: 0.7` — and those leads stay active even with the carriage
+parked, because holding current is chopped too. The pump is the milder one: a
+0.2-0.3A brushed motor with two switching events per dose.
+
+The endstop would normally be the victim, except that **the way it is wired keeps
+it out of trouble**. `endstop_pin: ^!PC0` with an NC switch means the untriggered
+state is *switch closed*, so PC0 is tied to ground through a few ohms of contact
+resistance for the whole approach. Capacitive coupling from a 12V bundle cannot
+lift that to a logic high. The high-impedance state — the MCU's internal pull-up,
+tens of kΩ — only exists *after* the switch trips, by which point homing has
+already stopped. Klipper also wants `endstop_sample_count` consecutive agreeing
+samples (4, 15 µs apart) before it believes a transition, which filters anything
+shorter than about 60 µs.
+
+Nothing in the bundle is above 12V, so there is no isolation or insulation
+concern, and at 0.7A and 0.3A bundling derates nothing worth calculating.
+
+### Keep each pair paired
+
+Loop area is what couples, and a pair carrying equal and opposite current has
+almost none. So:
+
+- **Use the stock 4-conductor motor cable.** Don't pull individual conductors
+  into different parts of the bundle; keep each coil's two wires together.
+- **Keep the endstop's two wires together**, twisted if convenient. One wire in
+  the bundle with its ground returning by some other path is the one arrangement
+  that would actually pick up noise.
+
+### The NC wiring is load-bearing
+
+[Wiring the X Endstop](#wiring-the-x-endstop) offers `^PC0` as the fix when
+`QUERY_ENDSTOPS` reads inverted. That works as a polarity fix, but it leaves the
+line sitting on the internal pull-up while idle, and in a shared bundle that is
+much more marginal than the grounded-through-the-switch arrangement above. If the
+reading is backwards, go back and re-trace the switch for the pair that is closed
+with the lever released, rather than flipping the config.
+
+### The one adjacency worth watching
+
+The water level sensor is the only signal input that gets **read while the pump is
+running**, and its wire naturally follows the same tube as the pump leads, so the
+two are hard to separate. That is acceptable: the sensor board drives its output
+actively and at low impedance, unlike a passive switch.
+
+If delivery checks ever start reading dry on a dose that visibly watered, suspect
+the pump rather than the routing. Brushed-motor commutation noise is broadband and
+continuous, and the flyback diode does nothing about it — the diode only clamps
+the turn-off spike. Fit a **100 nF ceramic across the pump terminals**, alongside
+the 1N5822. Note that this noise is conducted onto the 12V rail regardless of how
+the wires are dressed, which is why re-routing is not the fix here.
+
+### Signal runs
+
+The I2C tree is the genuinely sensitive bus in this system: open-drain, about 1 kΩ
+of effective pull-up, and deliberately slowed to 50 kHz. It fails as intermittent
+`-1` readings rather than cleanly, so give it its own route and verify with a soak
+rather than a single read — see
+[Cable length and bus capacitance](#cable-length-and-bus-capacitance). Soak it
+after any change to how the harness is dressed, not just after changing a cable:
+
+```bash
+/opt/greenthumb/.venv/bin/python -m greenthumb.hardware.soil_sensors --soak 120
+```
+
+The LED data line belongs in this group as an aggressor rather than a victim —
+800 kHz edges that the I2C run in particular should stay away from.
 
 ## Troubleshooting
 

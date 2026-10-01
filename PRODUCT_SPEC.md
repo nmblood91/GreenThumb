@@ -14,7 +14,7 @@ A 4-zone smart indoor planter system using:
 - 1000 mm 2020 aluminum rail mounted behind the plant zones
 - GT2 belt and pulley carriage motion system
 - NEMA 17 stepper motor with TMC2209 control
-- sensorless homing via the motion control board
+- homing against a mechanical endstop at the motor end of the rail
 - four capacitive soil moisture sensors
 - I2C address configuration to prevent collisions
 - per-zone watering nozzle and peristaltic pump
@@ -40,7 +40,9 @@ A 4-zone smart indoor planter system using:
 
 ### Motion and positioning
 - allow the watering carriage to move to each plant zone
-- support homing without endstop dependency via configured crash homing behavior
+- establish a repeatable zero by homing against a normally-closed endstop, so a
+  broken wire or unseated connector fails homing instead of driving the carriage
+  into the end of the rail
 - support manual control for calibration and maintenance
 
 ### Monitoring
