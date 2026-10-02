@@ -94,7 +94,9 @@ The first motion API endpoints are:
 The code is written to be easy to adapt to the actual hardware stack:
 
 - Klipper is the motion layer running on the BTT SKR Mini E3 V2
-- Raspberry Pi hosts the application and camera services
+- Raspberry Pi hosts the application and camera services, on 64-bit Pi OS. A
+  **Pi 3 Model B+ is the supported floor** — same board outline, mounting holes
+  and CSI connector as the Pi 4, and 1 GB of RAM. See [BOM.md](BOM.md)
 - 4 capacitive moisture sensors are mapped to unique addresses and read through a passive I2C hub
 - optical / camera monitoring can be integrated later into the same service layer
 

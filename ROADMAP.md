@@ -49,7 +49,17 @@ What we want instead:
   one versioned artifact, and its `postinst` can do the `printer.cfg`
   backup-and-merge the install script does today.
 - **Build the frontend once, in CI, not on every device.** That also drops the
-  Node toolchain from the shipped image, which is what makes a 512 MB Pi viable.
+  Node toolchain from the shipped image, and cuts first-boot time — a Vite build
+  on a Pi 3 B+ takes considerably longer than on a Pi 4.
+
+**Supported hardware floor: Raspberry Pi 3 Model B+.** That is a deliberate
+constraint, and it settles a few things: 1 GB of RAM means the on-device frontend
+build still works, so prebuilt bundles are a reliability and install-time
+improvement rather than a hardware requirement; 64-bit Pi OS stays the only
+target, so a release artifact can be arm64-only; and the board outline, mounting
+holes and standard 15-pin CSI connector match the Pi 4, so one enclosure and one
+camera ribbon cover both. Anything smaller — Pi 3 A+, Zero 2 W — changes the
+mounting pattern and drops to 512 MB, which would reopen the 32-bit question.
 
 Prerequisites whenever this starts: there is no CI yet, and the two version
 strings (`pyproject.toml`, `frontend/package.json`) are unmanaged — a release

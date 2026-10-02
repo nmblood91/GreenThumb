@@ -21,7 +21,15 @@
   [deploy/README.md](deploy/README.md) for which
 
 ## Compute and monitoring
-- Raspberry Pi 4 or equivalent
+- Raspberry Pi 4 (1 GB is sufficient). **Raspberry Pi 3 Model B+ is the floor** —
+  it keeps the 85 × 56 mm outline and mounting hole positions, the standard 15-pin
+  CSI camera connector, 1 GB of RAM and dual-band WiFi. Model B (not B+) also fits
+  but is 2.4 GHz only. Do **not** substitute a Pi 3 Model A+ or a Zero 2 W: both
+  are a different board outline with different mounting holes, and both are
+  512 MB. The Zero 2 W additionally uses the narrow 22-pin CSI connector
+- Note that a Pi 3 B+ and a Pi 4 share mounting holes but **not** port positions —
+  the Pi 4 has two micro-HDMI jacks, USB-C power, and Ethernet and USB swapped.
+  An enclosure needs either a generous port opening or two faceplates
 - MicroSD card
 - Pi Camera v2 or compatible CSI camera
 - USB power and breakout hardware as needed

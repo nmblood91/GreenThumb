@@ -94,7 +94,7 @@ the Pi. A 5V strip needs its own 5V supply and its own fuse sized to it.
 | Component | Voltage | Current | Power |
 |-----------|---------|---------|-------|
 | SKR Mini E3 V2 | 12V | 0.3A | 3.6W |
-| Raspberry Pi 4 | 5V | 0.6A | 3W |
+| Raspberry Pi 4 (or 3 B+) | 5V | 0.6A | 3W |
 | Pi Camera | 5V | 0.1A | 0.5W |
 | Soil Moisture Sensors (4x) | 3.3V | 0.05A | 0.15W |
 | Addressable LEDs (60 LEDs, 12V) | 12V | ~1.2-1.5A (peak full white) | ~14-18W |
