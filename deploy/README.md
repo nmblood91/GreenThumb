@@ -536,6 +536,23 @@ home running each sensor would.
 If your runs differ, redo that sum rather than comparing against the total here —
 the figure that matters is the sum of every branch, not the longest one.
 
+**Measured, as a baseline.** A 120 s soak on this layout at 50 kHz, with the
+harness open and nothing else in the loom:
+
+```
+addr     reads  errors    rate  raw min/mean/max       verdict
+0x36       474       0   0.00%  332 / 338 / 345        clean
+0x37       474       0   0.00%  322 / 328 / 334        clean
+0x38       474       0   0.00%  327 / 332 / 337        clean
+0x39       474       0   0.00%  320 / 324 / 328        clean
+```
+
+1896 reads, no errors, and a raw spread of only 6-13 counts per address — so the
+bus is quiet, not merely working. Worth keeping as the reference point: once the
+LED data line and stepper leads are in the loom, a soak that degrades against
+this is a routing problem rather than a cable-length or pull-up problem, which
+narrows the search considerably.
+
 Too much capacitance slows the rise time of SDA and SCL, so the line has not
 reached a valid high when the clock samples it. It does not fail cleanly — you
 get occasional NACKs, which surface here as sensors randomly reporting `-1`.
