@@ -44,8 +44,11 @@ class Settings(BaseSettings):
     moisture_raw_dry: int = 350
     moisture_raw_wet: int = 1016
 
-    # Off by default: the pump driver is still a stub, and an unattended pump
-    # is the one failure here that can drown a plant or run itself dry.
+    # Off by default. The pump is real, but an unattended pump is the one
+    # failure here that can drown a plant or empty the reservoir onto a dose
+    # that never arrives. Turn this on only after running the pump by hand and
+    # measuring pump_flow_ml_per_second against a real dose, since that figure
+    # is what converts a requested volume into a run time.
     auto_watering_enabled: bool = False
     watering_cooldown_minutes: int = 30
 
