@@ -106,14 +106,30 @@ ceilings are nowhere near the limit. Either way the A+ becomes viable as a side
 effect of shipping a prebuilt bundle rather than as separate work, so the
 cheapest path is to do that and stop caring what the build costs.
 
-**The open technical risk is the camera.** It is a Phase 2 feature and does not
-exist yet — the UI controls for it are inert — and it is the only genuinely
-heavy workload in the product. 512 MB alongside continuous H.264 encode is
-exactly where this choice could fail. The SoC has the hardware encoder, so
-timelapse stills should be fine; live streaming is the case to prove. **Validate
-camera capture on an A+ before locking the target**, because discovering it
-later means either dropping a planned feature or changing the board after the
-chassis is designed around it.
+**The camera is a paid optional add-on, scoped to timelapse.** That is what makes
+the A+ safe to commit to. The base unit ships without a camera and has no need
+for the headroom at all; the add-on adds the module and timelapse capture, which
+is periodic stills rather than continuous encode — well within 512 MB.
+
+**Live streaming is explicitly out of scope** and far enough out that it should
+not influence the board choice. Because the camera is a tier rather than a base
+feature, **the board can differ by tier**: if streaming ever ships, that tier can
+carry a Pi 4 and the base unit stays on an A+. This is the thing that keeps a
+someday feature from constraining a today decision.
+
+Two design constraints that follow from timelapse on an A+:
+
+- **Stills accumulate, so retention is required, not optional.** One frame every
+  15 minutes at a few hundred KB is on the order of a gigabyte a month onto an SD
+  card. This wants the same treatment as sensor history, which already prunes on
+  `history_retention_days`.
+- **Don't assemble video on the device.** Encoding a timelapse from stills is a
+  batch job that does not belong on a 512 MB host competing with Klipper. Serve
+  the stills and assemble on demand elsewhere, or do it nightly at low priority.
+
+Still worth validating capture on an actual A+ before the chassis is designed
+around that mounting pattern — but the bar is now timelapse stills, not a live
+stream, which is a much lower one.
 
 Prerequisites whenever this starts: there is no CI yet, and the two version
 strings (`pyproject.toml`, `frontend/package.json`) are unmanaged — a release

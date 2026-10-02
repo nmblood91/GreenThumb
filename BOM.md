@@ -39,7 +39,10 @@
   outlines and different port faces, so plan for two mounting patterns rather
   than one
 - MicroSD card
-- Pi Camera v2 or compatible CSI camera
+- Pi Camera v2 or compatible CSI camera — **optional paid add-on, not base
+  build.** Scoped to timelapse; the standard 15-pin ribbon fits both the A+ and
+  the development boards. Live streaming is out of scope, see
+  [ROADMAP.md](ROADMAP.md)
 - USB power and breakout hardware as needed
 - Cooling solution for Pi, if required
 

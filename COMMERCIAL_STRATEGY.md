@@ -15,7 +15,8 @@ GreenThumb is a smart indoor planter system built around:
 - 12V peristaltic pump with watering nozzle for controlled fluid delivery
 - Raspberry Pi as the host controller
 - BTT SKR Mini E3 V2 with embedded TMC2209 drivers
-- Pi Camera for monitoring and timelapses
+- Pi Camera for monitoring and timelapses — an optional paid add-on rather than
+  part of the base unit
 
 This is a complete hardware + software product that can be sold as a consumer or premium home-garden appliance.
 
@@ -25,6 +26,9 @@ The business model should be framed around selling the full system, not just cod
 
 ### Revenue streams
 - one-time sale of the complete planter system
+- **camera add-on**: the module plus timelapse capture, sold as an upgrade on the
+  base unit. Keeping it a tier rather than a base feature also lets a future
+  streaming tier ship different compute without changing the base build
 - premium versions with more sensors, larger capacity, higher-end materials, or improved aesthetics
 - optional subscription for remote monitoring, updates, plant care recommendations, and advanced automation
 - consumables: nutrient solution, replacement pump tubing, filters, cleaning kits, sensor replacements

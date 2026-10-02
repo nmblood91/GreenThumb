@@ -20,7 +20,7 @@ A 4-zone smart indoor planter system using:
 - per-zone watering nozzle and peristaltic pump
 - addressable LED strip for zone lighting and ambient modes
 - Raspberry Pi as host controller
-- Pi camera for monitoring and timelapse
+- Pi camera for monitoring and timelapse, as an optional paid add-on
 - BTT SKR Mini E3 V2 motion board
 
 ## Functional goals
