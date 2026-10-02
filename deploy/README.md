@@ -512,16 +512,29 @@ which the Pi's pins are not tolerant of.
 
 ### Cable length and bus capacitance
 
-The soil sensors hang off a hub tree rather than home runs back to the Pi. A
-representative layout is four 150 mm sensor drops into two sub-hubs, 400 mm from
-each sub-hub to a master hub, and 100 mm from there to the Pi — about **1.5 m of
-cable in total**.
+The soil sensors hang off a hub tree rather than home runs back to the Pi. As
+built:
+
+| Run | Length |
+|---|---|
+| 4 × sensor drops into the two sub-hubs | 150 mm each |
+| Left sub-hub → master hub | 300 mm |
+| Right sub-hub → master hub | 400 mm |
+| Master hub → Pi | 100 mm |
+| **Total** | **≈ 1.4 m** |
+
+The two sub-hub runs do not have to match — they are separate branches, and only
+the total matters. The right side needed 400 mm to reach; the left came in at
+300 mm.
 
 **Total bus capacitance is what matters, not the longest run**, and it is the sum
-of every branch. I2C allows 400 pF; at roughly 60 pF/m that 1.5 m contributes
-about 90 pF, plus ~10 pF per sensor pin and a little for the hub boards. Around
-145 pF, so roughly a third of budget. The tree also uses *less* cable than home
-running each sensor would.
+of every branch. I2C allows 400 pF; at roughly 60 pF/m that 1.4 m contributes
+about 85 pF, plus ~10 pF per sensor pin and a little for the three hub boards.
+Call it 135 pF, so about a third of budget. The tree also uses *less* cable than
+home running each sensor would.
+
+If your runs differ, redo that sum rather than comparing against the total here —
+the figure that matters is the sum of every branch, not the longest one.
 
 Too much capacitance slows the rise time of SDA and SCL, so the line has not
 reached a valid high when the clock samples it. It does not fail cleanly — you
