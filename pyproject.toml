@@ -12,9 +12,14 @@ dependencies = [
   "fastapi>=0.115.0",
   "uvicorn[standard]>=0.30.6",
   "pydantic-settings>=2.4.0",
-  "httpx>=0.27.2",
   "apscheduler>=3.10.4",
   "python-dotenv>=1.0.1",
+  # Hardware buses: smbus2 for the soil sensors over I2C, spidev for the LED
+  # strip over SPI. Both are imported by greenthumb.hardware and were missing
+  # here while being listed in requirements.txt, so a `pip install .` produced
+  # an install that could not read a sensor.
+  "smbus2>=0.4.3",
+  "spidev>=3.6",
 ]
 
 [tool.setuptools]

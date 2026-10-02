@@ -91,13 +91,13 @@ For a clean installation with the latest OS, start here:
 
    Read the sensors directly, without going through the API:
    ```bash
-   /opt/greenthumb/.venv/bin/python -m greenthumb.hardware.soil_sensors
+   cd /opt/greenthumb && .venv/bin/python -m greenthumb.hardware.soil_sensors
    ```
    Sensors that are absent or unplugged report `-1` rather than a fake value.
 
    Check the bus is reliable, not just working, after any cabling change:
    ```bash
-   /opt/greenthumb/.venv/bin/python -m greenthumb.hardware.soil_sensors --soak 120
+   cd /opt/greenthumb && .venv/bin/python -m greenthumb.hardware.soil_sensors --soak 120
    ```
    This hammers every address for two minutes and reports an error rate each.
    Intermittent I2C trouble is invisible in a single read and easy to mistake for
@@ -560,7 +560,7 @@ Three things keep it healthy:
 Verify with a soak test rather than a single read:
 
 ```bash
-/opt/greenthumb/.venv/bin/python -m greenthumb.hardware.soil_sensors --soak 120
+cd /opt/greenthumb && .venv/bin/python -m greenthumb.hardware.soil_sensors --soak 120
 ```
 
 Clean means zero errors. Under 1% is tolerable. Above that, slow the clock
@@ -853,7 +853,7 @@ rather than a single read — see
 after any change to how the harness is dressed, not just after changing a cable:
 
 ```bash
-/opt/greenthumb/.venv/bin/python -m greenthumb.hardware.soil_sensors --soak 120
+cd /opt/greenthumb && .venv/bin/python -m greenthumb.hardware.soil_sensors --soak 120
 ```
 
 The LED data line belongs in this group as an aggressor rather than a victim —

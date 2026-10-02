@@ -145,6 +145,12 @@ python3 -m venv .venv
 . .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
+# Install the project itself, editable. Without this, `greenthumb` is importable
+# only when the working directory happens to be /opt/greenthumb -- which is why
+# the API service sets WorkingDirectory, and why running a module by hand from
+# anywhere else failed with ModuleNotFoundError. Editable so a git pull takes
+# effect without reinstalling.
+pip install -e .
 
 cd /opt/greenthumb/frontend
 # install rather than ci: the committed lockfile is generated on Windows and
