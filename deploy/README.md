@@ -373,12 +373,37 @@ inline with a wire, and not at the board end.
   HE0 "PC8"  ──→ mosfet ──→ GND
 ```
 
-Note the diode sits *downstream* of the fuse. That is deliberate: if you fit it
-backwards, the fuse is the thing that goes.
+**Striped end (cathode) to the positive terminal.** Orientation is not optional.
+Reversed, the diode is forward-biased from +12V toward PC8, which is a dead
+short through the mosfet.
 
-**Striped end (cathode) to the positive terminal.** Orientation is not optional:
-reversed, the diode sits forward-biased across 12V as a dead short and blows the
-1A pump fuse the moment you power up.
+It does not short at power-up, though, and that is worth being precise about:
+the diode's path to ground runs through PC8, and the mosfet holds that open
+until Klipper switches it. **A reversed diode draws nothing until the first time
+the pump is commanded on**, and blows the 1A fuse then. So a clean power-up is
+not evidence the diode is the right way round — check continuity before
+powering, rather than letting the fuse answer the question.
+
+### Where the fuse goes, and why
+
+Put the fuse **upstream of the junction** — between the SKR and the `+` block —
+not between the block and the pump.
+
+The `+` node joins three things: the feed from the SKR, the diode's cathode, and
+the pump's positive lead. A fuse upstream of that branch point is in series with
+every path through it. A fuse on the pump branch alone protects only the pump,
+and leaves two faults uncovered:
+
+- **A reversed diode.** Its fault path is `12V → diode → PC8 → mosfet → GND`,
+  which never passes through a fuse sitting on the pump branch. That short is
+  then held back only by the 5A main fuse, and the mosfet fails long before a 5A
+  fast-blow responds. The component the diode protects is destroyed by the diode.
+- **The block itself.** The `+` node is live whenever the SKR is powered. A
+  bridged connector or chafed insulation there is unfused for the same reason.
+
+A fuse on the pump branch also sits *inside* the flyback loop, so the circulating
+current at turn-off runs `motor → diode → fuse → motor`, adding length to the one
+loop that is supposed to be short.
 
 Part: a **1N5822** (3A Schottky) is comfortable overkill for a 0.2-0.3A pump and
 costs the same as anything smaller, so it is the easy choice. A 1N5817 or 1N4001

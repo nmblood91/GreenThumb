@@ -46,11 +46,12 @@ See [deploy/README.md](deploy/README.md) for the connector-level wiring.
 - **Purpose:** Protects entire system from shorts in busbar or downstream
 
 ### Pump Circuit Protection
-- **Location:** SKR HE0 "12/24V" pin → Pump positive wire
+- **Location:** SKR HE0 "12/24V" pin → the `+` junction block, upstream of where
+  the diode and the pump lead branch off
 - **Type:** Fast-blow glass fuse
 - **Rating:** 1A
-- **Purpose:** Protects pump circuit; allows pump failure without killing entire system
-- **Optional but recommended:** Provides granular protection and easier troubleshooting
+- **Purpose:** Protects the pump circuit, and is the only thing standing between
+  a reversed flyback diode and the HE0 mosfet
 
 **Why it sits on the pump's positive lead.** The pump's current path is
 SKR VIN → HE0 12/24V pin → pump (+) → motor → pump (−) → PC8 → mosfet → ground.
@@ -58,6 +59,13 @@ Only a fuse somewhere in that loop protects anything. A fuse on a *second* wire
 run from the busbar to the HE0 12/24V pin protects nothing, because that pin is
 already the same node as the busbar — it is the board's own input rail brought
 out to the connector.
+
+**Why upstream of the junction, not on the pump branch.** The `+` block joins
+three conductors: the feed, the diode cathode, and the pump lead. Fused upstream,
+the fuse is in series with every path through that node. Fused on the pump branch
+instead, a reversed diode shorts `12V → diode → PC8 → mosfet → GND` without ever
+crossing it, leaving only the 5A main fuse — which the mosfet does not survive
+waiting for. See [deploy/README.md](deploy/README.md).
 
 **Why 1A and not 2A.** The pump draws 0.2-0.3A running. A 2A fuse would let a
 fault pull nearly 2A indefinitely without ever blowing, which is barely
