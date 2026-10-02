@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import logging
+import statistics
 import struct
 import time
+from datetime import datetime
 
 import smbus2
 
+from greenthumb import state
 from greenthumb.models import SensorSample
 
 logger = logging.getLogger(__name__)
@@ -50,10 +53,16 @@ class SoilSensorHub:
         addresses: list[int] | None = None,
         raw_dry: int = 350,
         raw_wet: int = 1016,
+        calibration: dict[int, dict[str, int]] | None = None,
     ) -> None:
         self.addresses = addresses or [0x36, 0x37, 0x38, 0x39]
         self.raw_dry = raw_dry
         self.raw_wet = raw_wet
+        # Per-address endpoints measured by --calibrate, overriding raw_dry and
+        # raw_wet for the sensors that have them. Sensors read meaningfully
+        # differently from each other in identical conditions, so one global
+        # span puts that spread straight into the reported percentage.
+        self.calibration = calibration or {}
         self.bus: smbus2.SMBus | None = None
         self._initialized_sensors: set[int] = set()
 
@@ -123,9 +132,26 @@ class SoilSensorHub:
         raw[0] &= 0x3F  # high bits are status flags, not part of the fixed-point value
         return struct.unpack(">I", bytes(raw))[0] / 65536.0
 
-    def raw_to_percent(self, raw: float) -> float:
-        span = max(self.raw_wet - self.raw_dry, 1)
-        percent = (raw - self.raw_dry) / span * 100.0
+    def endpoints_for(self, address: int | None) -> tuple[int, int]:
+        """Calibrated dry/wet for one address, falling back per endpoint.
+
+        Each endpoint falls back independently, because calibrating dry and
+        calibrating wet are separate passes: a sensor with only its dry point
+        measured should use that and the global default for wet, not revert
+        both.
+        """
+        entry = self.calibration.get(address) if address is not None else None
+        if not entry:
+            return self.raw_dry, self.raw_wet
+        return (
+            int(entry.get("dry", self.raw_dry)),
+            int(entry.get("wet", self.raw_wet)),
+        )
+
+    def raw_to_percent(self, raw: float, address: int | None = None) -> float:
+        dry, wet = self.endpoints_for(address)
+        span = max(wet - dry, 1)
+        percent = (raw - dry) / span * 100.0
         return round(max(0.0, min(percent, 100.0)), 1)
 
     def read_all(self) -> list[SensorSample]:
@@ -150,34 +176,40 @@ class SoilSensorHub:
         logger.debug("0x%02x moisture=%d temp=%.1fC", address, moisture, temperature)
         return SensorSample(
             sensor_address=address,
-            moisture_percent=self.raw_to_percent(moisture),
+            moisture_percent=self.raw_to_percent(moisture, address),
             moisture_raw=float(moisture),
             temperature_c=round(temperature, 1),
         )
 
     def __del__(self) -> None:
-        if self.bus:
+        # getattr, not self.bus: if __init__ raised before setting it, __del__
+        # still runs and an AttributeError here is unraisable noise that buries
+        # the real error.
+        if getattr(self, "bus", None):
             try:
                 self.bus.close()
             except Exception:
                 pass
 
 
-def _soak(hub: SoilSensorHub, seconds: int, interval: float) -> int:
-    """Hammer the bus and report per-address error rates.
+def _collect(
+    hub: SoilSensorHub,
+    seconds: int,
+    interval: float,
+    progress: bool = True,
+) -> dict[int, dict]:
+    """Read every address repeatedly, returning per-address reads/errors/values.
 
-    Intermittent I2C trouble from cable capacitance or noise shows up as
-    occasional failed reads, which are invisible in a single sample and easy to
-    mistake for a flaky sensor weeks later. This turns it into a number.
+    Shared by the soak test and by calibration: both want many samples per
+    address over a fixed window, and differ only in what they do with them.
     """
-    stats = {
+    stats: dict[int, dict] = {
         address: {"reads": 0, "errors": 0, "values": []} for address in hub.addresses
     }
     started = time.monotonic()
     deadline = started + seconds
     next_report = started + 10
 
-    print(f"Soaking the I2C bus for {seconds}s across {len(hub.addresses)} addresses...")
     while time.monotonic() < deadline:
         for address in hub.addresses:
             sample = hub.read_one(address)
@@ -189,12 +221,25 @@ def _soak(hub: SoilSensorHub, seconds: int, interval: float) -> int:
                 entry["values"].append(sample.moisture_raw)
 
         now = time.monotonic()
-        if now >= next_report:
+        if progress and now >= next_report:
             errors = sum(e["errors"] for e in stats.values())
             reads = sum(e["reads"] for e in stats.values())
             print(f"  {now - started:5.0f}s  {reads} reads, {errors} errors")
             next_report = now + 10
         time.sleep(interval)
+
+    return stats
+
+
+def _soak(hub: SoilSensorHub, seconds: int, interval: float) -> int:
+    """Hammer the bus and report per-address error rates.
+
+    Intermittent I2C trouble from cable capacitance or noise shows up as
+    occasional failed reads, which are invisible in a single sample and easy to
+    mistake for a flaky sensor weeks later. This turns it into a number.
+    """
+    print(f"Soaking the I2C bus for {seconds}s across {len(hub.addresses)} addresses...")
+    stats = _collect(hub, seconds, interval)
 
     print(f"\n{'addr':<6} {'reads':>7} {'errors':>7} {'rate':>7}  {'raw min/mean/max':<22} verdict")
     worst = 0.0
@@ -230,6 +275,134 @@ def _soak(hub: SoilSensorHub, seconds: int, interval: float) -> int:
     return 0 if worst < 1 else 1
 
 
+# Below this, a measured wet point is not plausibly wetter than the dry point --
+# almost always a prong that never reached the water, or a sensor still sitting
+# in air. Writing it would make the zone read 100% permanently.
+MIN_CALIBRATION_SPAN = 50
+
+# A stable sensor in a uniform medium barely moves; yours held 6-13 counts in
+# air. Much more than this and the reading had not settled, so the median is
+# being taken over a moving target.
+UNSTABLE_SPREAD = 40
+
+
+def calibrate(
+    hub: SoilSensorHub,
+    endpoint: str,
+    seconds: int = 20,
+    interval: float = 0.2,
+    state_path=None,
+) -> dict[int, dict[str, object]]:
+    """Sample every sensor and record one calibration endpoint for each.
+
+    `endpoint` is "dry" (sensors in open air) or "wet" (prongs in water). The
+    two are separate passes so either can be redone without losing the other.
+
+    The median is used rather than the mean: it ignores a single outlier read,
+    and with hundreds of samples there is no reason to be sensitive to one.
+    """
+    if endpoint not in ("dry", "wet"):
+        raise ValueError(f"endpoint must be 'dry' or 'wet', not {endpoint!r}")
+
+    existing = state.load_calibration(state_path)
+    stats = _collect(hub, seconds, interval, progress=False)
+    measured_at = datetime.utcnow().isoformat(timespec="seconds")
+
+    results: dict[int, dict[str, object]] = {}
+    for address, entry in stats.items():
+        values = entry["values"]
+        outcome: dict[str, object] = {
+            "address": address,
+            "reads": entry["reads"],
+            "errors": entry["errors"],
+        }
+
+        if not values:
+            outcome.update(written=False, reason="no sensor answered at this address")
+            results[address] = outcome
+            continue
+
+        value = int(round(statistics.median(values)))
+        spread = int(max(values) - min(values))
+        outcome.update(value=value, spread=spread, samples=len(values))
+
+        if spread > UNSTABLE_SPREAD:
+            outcome.update(
+                written=False,
+                reason=(
+                    f"readings moved {spread} counts during the run, so they had "
+                    "not settled -- let the sensor sit and try again"
+                ),
+            )
+            results[address] = outcome
+            continue
+
+        # Guard against the obvious operator error: running the wet pass with
+        # the sensors still in air, or the dry pass with them still wet. Either
+        # produces a span that makes the percentage meaningless.
+        other = existing.get(address, {})
+        if endpoint == "wet" and "dry" in other:
+            if value - other["dry"] < MIN_CALIBRATION_SPAN:
+                outcome.update(
+                    written=False,
+                    reason=(
+                        f"wet reading {value} is not meaningfully above the dry "
+                        f"point {other['dry']} -- are the prongs actually in water?"
+                    ),
+                )
+                results[address] = outcome
+                continue
+        if endpoint == "dry" and "wet" in other:
+            if other["wet"] - value < MIN_CALIBRATION_SPAN:
+                outcome.update(
+                    written=False,
+                    reason=(
+                        f"dry reading {value} is not meaningfully below the wet "
+                        f"point {other['wet']} -- is the sensor dry and in air?"
+                    ),
+                )
+                results[address] = outcome
+                continue
+
+        state.save_calibration_point(
+            address,
+            endpoint,
+            value,
+            samples=len(values),
+            measured_at=measured_at,
+            path=state_path,
+        )
+        outcome["written"] = True
+        results[address] = outcome
+
+    # Apply immediately so a running process reflects the new calibration
+    # without a restart -- which is the whole point of persisting it.
+    hub.calibration = state.load_calibration(state_path)
+    return results
+
+
+def _print_calibration(hub: SoilSensorHub, state_path=None) -> int:
+    stored = state.load_calibration(state_path)
+    print(f"{'addr':<6} {'dry':>6} {'wet':>6} {'span':>6}  source")
+    for address in hub.addresses:
+        entry = stored.get(address, {})
+        dry, wet = hub.endpoints_for(address)
+        if not entry:
+            source = "global default"
+        elif "dry" in entry and "wet" in entry:
+            source = "calibrated"
+        else:
+            missing = "wet" if "dry" in entry else "dry"
+            source = f"half calibrated, {missing} still default"
+        print(f"0x{address:02x}  {dry:>6} {wet:>6} {wet - dry:>6}  {source}")
+    if not stored:
+        print(
+            "\nNothing calibrated yet. Every sensor is using "
+            "MOISTURE_RAW_DRY/MOISTURE_RAW_WET from .env."
+        )
+    return 0
+
+
 if __name__ == "__main__":
     import argparse
     import sys
@@ -248,12 +421,34 @@ if __name__ == "__main__":
     parser.add_argument(
         "--interval", type=float, default=0.2, help="seconds between soak passes"
     )
+    parser.add_argument(
+        "--calibrate",
+        choices=("dry", "wet"),
+        help=(
+            "record one calibration endpoint for every sensor. 'dry' with the "
+            "sensors in open air, 'wet' with the prongs in water -- only the "
+            "prongs, up to the marked line, these boards are not waterproof"
+        ),
+    )
+    parser.add_argument(
+        "--seconds",
+        type=int,
+        default=20,
+        help="how long to sample during --calibrate (default 20s)",
+    )
+    parser.add_argument(
+        "--show-calibration",
+        action="store_true",
+        help="print the stored calibration and exit",
+    )
     args = parser.parse_args()
 
     # Per-read errors are the thing being counted during a soak, so logging each
-    # one would bury the summary in exactly the case the summary is for.
+    # one would bury the summary in exactly the case the summary is for. The
+    # same applies to calibration, which reads just as hard.
+    quiet = args.soak or args.calibrate
     logging.basicConfig(
-        level=logging.CRITICAL if args.soak else logging.DEBUG,
+        level=logging.CRITICAL if quiet else logging.DEBUG,
         format="%(levelname)s %(name)s: %(message)s",
     )
 
@@ -261,10 +456,47 @@ if __name__ == "__main__":
         addresses=settings.moisture_sensor_addresses_list,
         raw_dry=settings.moisture_raw_dry,
         raw_wet=settings.moisture_raw_wet,
+        calibration=state.load_calibration(),
     )
+
+    if args.show_calibration:
+        sys.exit(_print_calibration(hub))
 
     if args.soak:
         sys.exit(_soak(hub, args.soak, args.interval))
+
+    if args.calibrate:
+        where = "in open air" if args.calibrate == "dry" else "with the prongs in water"
+        print(
+            f"Calibrating the {args.calibrate.upper()} point over {args.seconds}s. "
+            f"All {len(hub.addresses)} sensors should be {where}."
+        )
+        if args.calibrate == "wet":
+            print(
+                "Only the prongs, up to the marked line -- these boards are not "
+                "waterproof and the connector end must stay dry.\n"
+            )
+        results = calibrate(hub, args.calibrate, args.seconds, args.interval)
+
+        print(f"\n{'addr':<6} {'value':>6} {'spread':>7} {'samples':>8}  result")
+        failures = 0
+        for address, outcome in results.items():
+            if outcome.get("written"):
+                print(
+                    f"0x{address:02x}  {outcome['value']:>6} {outcome['spread']:>7} "
+                    f"{outcome['samples']:>8}  stored as {args.calibrate}"
+                )
+            else:
+                failures += 1
+                value = outcome.get("value", "-")
+                shown = f"{value:>6}" if value != "-" else f"{'-':>6}"
+                print(f"0x{address:02x}  {shown} {'-':>7} {'-':>8}  NOT STORED: {outcome['reason']}")
+
+        if failures:
+            print(f"\n{failures} sensor(s) not stored. Fix the cause and re-run.")
+        else:
+            print("\nAll sensors stored. Run --show-calibration to review.")
+        sys.exit(1 if failures else 0)
 
     for sample in hub.read_all():
         print(

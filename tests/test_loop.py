@@ -59,6 +59,13 @@ class FakeLeds:
         return {"mode": self.mode, "connected": True}
 
 
+def temp_state():
+    """Each suite gets its own settings file; tests must never touch the real one."""
+    import tempfile
+    from pathlib import Path
+    return Path(tempfile.mkdtemp()) / "state.json"
+
+
 def temp_store():
     """Each suite gets its own database; tests must never touch the real one."""
     import tempfile
@@ -70,7 +77,7 @@ def temp_store():
 def build(raw):
     hub = FakeHub(raw)
     pump = FakePump()
-    auto = GreenThumbAutomation(hub, FakeKlipper(), pump, FakeLeds(), history=temp_store())
+    auto = GreenThumbAutomation(hub, FakeKlipper(), pump, FakeLeds(), history=temp_store(), state_path=temp_state())
     return auto, pump
 
 
@@ -144,7 +151,7 @@ class Exploding(FakeHub):
     def read_one(self, address):
         raise OSError("bus fell over")
 
-auto2 = GreenThumbAutomation(Exploding(350), FakeKlipper(), FakePump(), FakeLeds(), history=temp_store())
+auto2 = GreenThumbAutomation(Exploding(350), FakeKlipper(), FakePump(), FakeLeds(), history=temp_store(), state_path=temp_state())
 auto2.tick()
 assert not auto2._hardware_lock.locked(), "lock leaked after a failing tick"
 print("ok: failing tick is contained and releases the lock")
@@ -176,7 +183,7 @@ class RefusingKlipper(FakeKlipper):
         return {"ok": False, "error": "must home first"}
 
 
-auto2 = GreenThumbAutomation(FakeHub(350), RefusingKlipper(), FakePump(), FakeLeds(), history=temp_store())
+auto2 = GreenThumbAutomation(FakeHub(350), RefusingKlipper(), FakePump(), FakeLeds(), history=temp_store(), state_path=temp_state())
 result = auto2.water_zone("zone_1")
 assert result["status"] == "error", result
 assert auto2.pump.calls == [], "pumped despite a failed move"
@@ -232,3 +239,45 @@ assert pump.is_running is False
 print("ok: dropped connection mid-dose still forces the pump off")
 
 print("\nall checks passed")
+
+
+# --- settings survive a restart ---------------------------------------------
+# The bug this guards: zones were rebuilt from hardcoded literals on every
+# startup, so anything changed through the UI was lost on the next restart.
+
+shared = temp_state()
+
+
+def fresh(state_file):
+    return GreenThumbAutomation(
+        FakeHub(350), FakeKlipper(), FakePump(), FakeLeds(),
+        history=temp_store(), state_path=state_file,
+    )
+
+
+before = fresh(shared)
+default_target = before.get_zone("zone_1").moisture_target
+before.update_moisture_target("zone_1", 61)
+before.update_watering_volume("zone_2", 250)
+before.set_zone_position("zone_3", 500)
+before.update_zone_plant("zone_4", "Monstera")
+
+after = fresh(shared)
+assert after.get_zone("zone_1").moisture_target == 61, after.get_zone("zone_1").moisture_target
+assert after.get_zone("zone_2").watering_volume_ml == 250
+assert after.get_zone("zone_3").position_mm == 500
+assert after.get_zone("zone_4").name == "Monstera"
+assert default_target != 61, "test would pass vacuously if 61 were the default"
+print("ok: zone edits survive a restart")
+
+untouched = fresh(temp_state())
+assert untouched.get_zone("zone_1").moisture_target == default_target
+print("ok: a fresh install still gets the built-in defaults")
+
+# A corrupt settings file must not stop the service booting.
+bad = temp_state()
+bad.parent.mkdir(parents=True, exist_ok=True)
+bad.write_text("{truncated", encoding="utf-8")
+recovered = fresh(bad)
+assert recovered.get_zone("zone_1").moisture_target == default_target
+print("ok: a corrupt settings file falls back to defaults instead of failing to start")

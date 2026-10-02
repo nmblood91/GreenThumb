@@ -132,6 +132,19 @@ readings per zone, and waters a zone whose average falls below its target.
 [HOW_WATERING_WORKS.md](HOW_WATERING_WORKS.md) explains the rules and the
 reasoning in plain language, for people who won't be reading the code.
 
+## Settings persistence
+
+Anything changed at runtime — zone targets, dose volumes, rail positions, plant
+names, per-sensor moisture calibration and LED preferences — is written to
+`data/state.json` and reloaded at startup. The file is gitignored, so it
+survives `git pull`, and writes are atomic so a power cut cannot truncate it.
+
+A missing, corrupt or hand-edited file falls back to built-in defaults per
+field rather than refusing to start: the appliance has to boot.
+
+Zone definitions themselves (how many, which I2C address) still live in code —
+only the user-editable fields are stored.
+
 ## History
 
 Every reading is written to SQLite (`data/greenthumb.db`) once a minute, along

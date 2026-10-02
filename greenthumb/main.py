@@ -5,7 +5,7 @@ from datetime import datetime, time
 from typing import AsyncIterator
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from fastapi import Body, FastAPI, Request
+from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -103,6 +103,39 @@ def get_overview() -> dict[str, object]:
 @app.get(f"{settings.api_prefix}/sensors")
 async def read_sensors() -> list[dict[str, object]]:
     return automation.read_sensors()
+
+
+@app.get(f"{settings.api_prefix}/sensors/calibration")
+def get_moisture_calibration() -> dict[str, object]:
+    return automation.moisture_calibration()
+
+
+# Registered before the {endpoint} route below, which would otherwise match
+# "reset" as an endpoint name and reject it as invalid.
+@app.post(f"{settings.api_prefix}/sensors/calibration/reset")
+def reset_moisture_calibration() -> dict[str, object]:
+    result = automation.reset_moisture_calibration()
+    log_event("Moisture calibration cleared")
+    return result
+
+
+@app.post(f"{settings.api_prefix}/sensors/calibration/{{endpoint}}")
+def calibrate_moisture(endpoint: str, payload: dict[str, int] = Body(default_factory=dict)) -> dict[str, object]:
+    """Measure the dry or wet point for every sensor.
+
+    Deliberately synchronous. It blocks for the sampling window, the way a
+    gantry move blocks for its travel, rather than introducing a job queue for
+    one operation the user is standing in front of anyway.
+    """
+    seconds = int(payload.get("seconds", 20))
+    try:
+        result = automation.calibrate_moisture(endpoint, seconds)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    log_event(
+        f"Moisture {endpoint} calibration: {result['stored']}/{result['total']} sensors stored"
+    )
+    return result
 
 
 @app.get(f"{settings.api_prefix}/history")

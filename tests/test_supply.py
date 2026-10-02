@@ -58,6 +58,13 @@ class Leds:
     def status(self): return {"mode": "schedule"}
 
 
+def temp_state():
+    """Each suite gets its own settings file; tests must never touch the real one."""
+    import tempfile
+    from pathlib import Path
+    return Path(tempfile.mkdtemp()) / "state.json"
+
+
 def temp_store():
     """Each suite gets its own database; tests must never touch the real one."""
     import tempfile
@@ -68,7 +75,7 @@ def temp_store():
 
 def build(supply=True):
     pump, klip, store = Pump(), Klip(supply), temp_store()
-    auto = GreenThumbAutomation(Hub(), klip, pump, Leds(), history=store)
+    auto = GreenThumbAutomation(Hub(), klip, pump, Leds(), history=store, state_path=temp_state())
     return auto, pump, klip, store
 
 

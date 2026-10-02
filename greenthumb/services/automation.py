@@ -6,14 +6,16 @@ from collections import deque
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, time, timedelta
+from pathlib import Path
 
 from greenthumb.config import settings
 from greenthumb.hardware.klipper_client import KlipperClient
 from greenthumb.hardware.lighting import LedController
 from greenthumb.hardware.pump import PumpController
-from greenthumb.hardware.soil_sensors import SoilSensorHub, unavailable_sample
+from greenthumb.hardware.soil_sensors import SoilSensorHub, calibrate, unavailable_sample
 from greenthumb.history import DEFAULT_DB_PATH, HistoryStore
 from greenthumb.models import SensorSample, ZoneSpec, ZoneStatus
+from greenthumb import state
 
 logger = logging.getLogger(__name__)
 
@@ -44,11 +46,15 @@ class GreenThumbAutomation:
         pump: PumpController | None = None,
         leds: LedController | None = None,
         history: HistoryStore | None = None,
+        state_path: str | Path | None = None,
     ) -> None:
+        # Injectable so tests do not read or overwrite the real settings file.
+        self._state_path = state_path
         self.sensor_hub = sensor_hub or SoilSensorHub(
             addresses=settings.moisture_sensor_addresses_list,
             raw_dry=settings.moisture_raw_dry,
             raw_wet=settings.moisture_raw_wet,
+            calibration=state.load_calibration(self._state_path),
         )
         self.klipper = klipper_client or KlipperClient(socket_path=settings.klipper_host)
         self.pump = pump or PumpController(
@@ -88,6 +94,112 @@ class GreenThumbAutomation:
             ZoneSpec(name="Zone 4", zone_id="zone_4", sensor_address=0x39, moisture_target=44, watering_volume_ml=100, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=900),
         ]
         self.apply_default_led_ranges()
+        # Zone edits, dose volumes, rail positions and LED preferences are all
+        # user choices that used to live only in memory, so every restart reset
+        # them to the literals above. Restore whatever was saved last.
+        self._restore_state()
+
+    # --- persistence ------------------------------------------------------
+
+    def _restore_state(self) -> None:
+        stored = state.load_state(self._state_path)
+
+        for saved in stored.get("zones", []) or []:
+            if not isinstance(saved, dict):
+                continue
+            zone = self.get_zone(str(saved.get("zone_id", "")))
+            if zone is None:
+                # A zone id that no longer exists is skipped rather than
+                # treated as an error: the zone set is defined by the code.
+                continue
+            if isinstance(saved.get("name"), str) and saved["name"].strip():
+                zone.name = saved["name"]
+            for field_name in ("moisture_target", "watering_volume_ml", "position_mm"):
+                value = saved.get(field_name)
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    continue
+                setattr(zone, field_name, type(getattr(zone, field_name))(value))
+            for field_name in ("light_start_time", "light_stop_time"):
+                text = saved.get(field_name)
+                if not isinstance(text, str):
+                    continue
+                try:
+                    setattr(zone, field_name, time.fromisoformat(text))
+                except ValueError:
+                    logger.warning("Ignoring bad %s %r", field_name, text)
+
+        leds = stored.get("leds")
+        if isinstance(leds, dict):
+            self._restore_led_state(leds)
+
+    def _restore_led_state(self, leds: dict) -> None:
+        # Chip first: selecting one resets the channel order to that chip's
+        # default, so a saved order has to be applied after it.
+        for key, setter_name in (
+            ("chip", "set_chip"),
+            ("color_order", "set_color_order"),
+            ("brightness", "set_brightness"),
+            ("mode", "set_mode"),
+        ):
+            value = leds.get(key)
+            # Resolved by name rather than as an attribute up front: a
+            # controller that does not implement one of these should skip it,
+            # not fail startup before the try block is even reached.
+            setter = getattr(self.leds, setter_name, None)
+            if value is None or setter is None:
+                continue
+            try:
+                setter(value)
+            except (ValueError, TypeError, KeyError) as exc:
+                logger.warning("Ignoring stored LED %s %r: %s", key, value, exc)
+
+        color = leds.get("color")
+        if isinstance(color, (list, tuple)) and len(color) == 3:
+            try:
+                self.leds.color = tuple(int(channel) for channel in color)
+            except (ValueError, TypeError):
+                logger.warning("Ignoring stored LED color %r", color)
+
+    def _snapshot(self) -> dict:
+        return {
+            "zones": [
+                {
+                    "zone_id": zone.zone_id,
+                    "name": zone.name,
+                    "moisture_target": zone.moisture_target,
+                    "watering_volume_ml": zone.watering_volume_ml,
+                    "position_mm": zone.position_mm,
+                    "light_start_time": zone.light_start_time.isoformat(timespec="minutes"),
+                    "light_stop_time": zone.light_stop_time.isoformat(timespec="minutes"),
+                }
+                for zone in self.zones
+            ],
+            # getattr throughout: a controller that does not expose one of
+            # these simply has it left out of the snapshot, rather than a
+            # settings save failing because of an LED attribute.
+            "leds": {
+                key: value
+                for key, value in (
+                    ("mode", getattr(self.leds, "mode", None)),
+                    ("color", list(getattr(self.leds, "color", []) or []) or None),
+                    ("brightness", getattr(self.leds, "brightness", None)),
+                    ("chip", getattr(getattr(self.leds, "strip", None), "chip", None)),
+                    (
+                        "color_order",
+                        getattr(getattr(self.leds, "strip", None), "color_order", None),
+                    ),
+                )
+                if value is not None
+            },
+        }
+
+    def _persist(self) -> None:
+        """Write the current settings. Never raises: a failed save must not
+        turn a successful setting change into an API error."""
+        try:
+            state.update_state(self._snapshot(), self._state_path)
+        except Exception:
+            logger.exception("Could not persist settings")
 
     def apply_default_led_ranges(self) -> None:
         zone_count = len(self.zones)
@@ -121,6 +233,7 @@ class GreenThumbAutomation:
 
         bounded_position = max(0.0, min(float(position_mm), self.usable_travel_mm()))
         zone.position_mm = round(bounded_position, 1)
+        self._persist()
 
         return {
             "status": "ok",
@@ -458,12 +571,66 @@ class GreenThumbAutomation:
         with self._exclusive(f"Watering {zone_id}"):
             return self._move_and_water(zone, volume_ml, trigger="manual")
 
+    def calibrate_moisture(self, endpoint: str, seconds: int = 20) -> dict[str, object]:
+        """Measure one calibration endpoint for every sensor.
+
+        Holds the hardware lock: this hammers the I2C bus for the whole window,
+        and a watering cycle running at the same time would both skew the
+        readings and be slowed by them.
+        """
+        if endpoint not in ("dry", "wet"):
+            raise ValueError(f"endpoint must be 'dry' or 'wet', not {endpoint!r}")
+        bounded = max(5, min(int(seconds), 120))
+
+        with self._exclusive(f"Calibrating {endpoint} point"):
+            results = calibrate(self.sensor_hub, endpoint, bounded, state_path=self._state_path)
+
+        stored = sum(1 for item in results.values() if item.get("written"))
+        return {
+            "status": "ok",
+            "endpoint": endpoint,
+            "seconds": bounded,
+            "stored": stored,
+            "total": len(results),
+            "sensors": [
+                {"address": f"0x{address:02x}", **{
+                    key: value for key, value in outcome.items() if key != "address"
+                }}
+                for address, outcome in sorted(results.items())
+            ],
+        }
+
+    def moisture_calibration(self) -> dict[str, object]:
+        stored = state.load_calibration(self._state_path)
+        return {
+            "status": "ok",
+            "default_dry": settings.moisture_raw_dry,
+            "default_wet": settings.moisture_raw_wet,
+            "sensors": [
+                {
+                    "address": f"0x{address:02x}",
+                    "dry": self.sensor_hub.endpoints_for(address)[0],
+                    "wet": self.sensor_hub.endpoints_for(address)[1],
+                    "calibrated_dry": "dry" in stored.get(address, {}),
+                    "calibrated_wet": "wet" in stored.get(address, {}),
+                }
+                for address in self.sensor_hub.addresses
+            ],
+        }
+
+    def reset_moisture_calibration(self) -> dict[str, object]:
+        state.clear_calibration(self._state_path)
+        self.sensor_hub.calibration = {}
+        return {"status": "ok", "message": "Calibration cleared, using .env defaults"}
+
     def set_light_mode(self, mode: str) -> dict[str, object]:
         result = self.leds.set_mode(mode)
+        self._persist()
         return {"status": "ok", "mode": result["mode"]}
 
     def set_light_color(self, color: tuple[int, int, int]) -> dict[str, object]:
         result = self.leds.set_static_color(color)
+        self._persist()
         return {
             "status": "ok",
             "mode": result["mode"],
@@ -471,13 +638,18 @@ class GreenThumbAutomation:
         }
 
     def set_light_color_order(self, order: str) -> dict[str, object]:
-        return self.leds.set_color_order(order)
+        result = self.leds.set_color_order(order)
+        self._persist()
+        return result
 
     def set_light_chip(self, chip: str) -> dict[str, object]:
-        return self.leds.set_chip(chip)
+        result = self.leds.set_chip(chip)
+        self._persist()
+        return result
 
     def set_light_brightness(self, brightness: int) -> dict[str, object]:
         result = self.leds.set_brightness(brightness)
+        self._persist()
         return {
             "status": "ok",
             "brightness": result["brightness"],
@@ -515,6 +687,7 @@ class GreenThumbAutomation:
         if zone is None:
             raise ValueError(f"Unknown zone_id: {zone_id}")
         zone.name = name.strip() or zone.name
+        self._persist()
         return {"status": "ok", "zone_id": zone_id, "name": zone.name}
 
     def update_light_schedule(self, zone_id: str, start_time: time, stop_time: time) -> dict[str, object]:
@@ -527,6 +700,7 @@ class GreenThumbAutomation:
 
         zone.light_start_time = start_time
         zone.light_stop_time = stop_time
+        self._persist()
 
         return {
             "status": "ok",
@@ -541,6 +715,7 @@ class GreenThumbAutomation:
             raise ValueError(f"Unknown zone_id: {zone_id}")
 
         zone.watering_volume_ml = max(0, int(volume_ml))
+        self._persist()
         return {
             "status": "ok",
             "zone_id": zone_id,
@@ -554,6 +729,7 @@ class GreenThumbAutomation:
 
         clamped_target = max(0.0, min(float(moisture_target), 100.0))
         zone.moisture_target = round(clamped_target, 1)
+        self._persist()
 
         return {
             "status": "ok",
