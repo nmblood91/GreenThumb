@@ -48,14 +48,17 @@ What we want instead:
   a prebuilt frontend, the systemd units, the nginx config and the Python deps as
   one versioned artifact, and its `postinst` can do the `printer.cfg`
   backup-and-merge the install script does today.
-- **Build the frontend once, in CI, not on every device.** That also drops the
-  Node toolchain from the shipped image, and cuts first-boot time — a Vite build
-  on a Pi 3 B+ takes considerably longer than on a Pi 4.
+- **Build the frontend once, in CI, not on every device.** The reasons are
+  update reliability and image size, *not* install time: no dependency on the
+  npm registry resolving correctly on a device in someone's house, no
+  `npm install` rewriting the lockfile mid-update, and no Node toolchain or
+  `node_modules` on the shipped SD card. See the measurements below — the build
+  itself is seconds, so install time is not an argument here.
 
 **Supported hardware floor: Raspberry Pi 3 Model B+.** That is a deliberate
 constraint, and it settles a few things: 1 GB of RAM means the on-device frontend
-build still works, so prebuilt bundles are a reliability and install-time
-improvement rather than a hardware requirement; 64-bit Pi OS stays the only
+build still works, so prebuilt bundles are a reliability improvement rather than
+a hardware requirement; 64-bit Pi OS stays the only
 target, so a release artifact can be arm64-only; and the board outline, mounting
 holes and standard 15-pin CSI connector match the Pi 4, so one enclosure and one
 camera ribbon cover both. Anything smaller changes the mounting pattern and drops to
@@ -69,10 +72,24 @@ B+, same dual-band WiFi, same 40-pin pinout, and the same standard 15-pin CSI
 connector, so the camera ribbon is unaffected. Its smaller outline means a
 different mounting pattern, which is a chassis change rather than a blocker.
 
-The one hard blocker is the 512 MB of RAM against an on-device Vite build. The
-runtime stack fits; the build is the part that does not. So the A+ becomes viable
-as a side effect of shipping a prebuilt bundle, not as separate work — measure
-peak RSS of `npm install` and `npm run build` before committing either way.
+The question is whether 512 MB survives an on-device Vite build. Measured on a
+Pi 4 (1 GB) with Klipper, the API and nginx all running:
+
+| | Wall time | Peak RSS |
+|---|---|---|
+| `npm install` | 14.7 s | 153 MB |
+| `npm run build` | 1.7 s | 123 MB |
+| Peak system-wide used | | **371 MB** |
+
+**Caveat: that was a warm run** — `node_modules` was populated and npm's cache
+was primed, which is why `npm install` finished in seconds. A factory first boot
+is cold and will peak higher. Re-measure after `rm -rf node_modules` and
+`npm cache clean --force` before treating 371 MB as the real figure.
+
+Taken at face value those numbers suggest an A+ would cope, and the per-process
+ceilings are nowhere near the limit. Either way the A+ becomes viable as a side
+effect of shipping a prebuilt bundle rather than as separate work, so the
+cheapest path is to do that and stop caring what the build costs.
 
 Two caveats that survive even then: 512 MB leaves little headroom for camera
 encoding, and the A+ has no Ethernet, so on a headless unit a bad WiFi
