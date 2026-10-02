@@ -65,12 +65,27 @@ camera ribbon cover both. Anything smaller changes the mounting pattern and drop
 512 MB, which would reopen the 32-bit question. [BOM.md](BOM.md) rules those out
 for now.
 
-**Dropping the floor to a Pi 3 Model A+ is worth revisiting once the frontend is
-no longer built on the device.** It is appealing on cost, and most of the
-objections do not actually apply: same BCM2837B0 and same 1.4 GHz quad A53 as the
-B+, same dual-band WiFi, same 40-pin pinout, and the same standard 15-pin CSI
-connector, so the camera ribbon is unaffected. Its smaller outline means a
-different mounting pattern, which is a chassis change rather than a blocker.
+**The intended production target is the Pi 3 Model A+**, chosen on cost. Most of
+the objections to it do not apply: same BCM2837B0 and same 1.4 GHz quad A53 as
+the B+, same dual-band WiFi, same 40-pin pinout, and the same standard 15-pin
+CSI connector, so neither the wiring nor the camera ribbon changes. Its smaller
+outline means a different mounting pattern, which is a chassis change rather
+than a blocker.
+
+Three consequences follow from choosing it, and they are decisions rather than
+details:
+
+- **The prebuilt frontend bundle moves onto the critical path.** On 1 GB it was
+  optional. On 512 MB it is how you stop caring what the build costs, and the
+  cold measurement below has not been taken yet.
+- **WiFi onboarding becomes a product requirement.** The A+ has no Ethernet and
+  one USB port, which the SKR occupies. A headless unit with a bad WiFi
+  configuration cannot be recovered in the field without pulling the SD card, so
+  provisioning — AP mode, a captive portal, something — has to be designed, not
+  left to `rpi-imager` presets.
+- **32-bit versus 64-bit reopens.** The 1 GB floor had settled this on arm64. At
+  512 MB, armhf is meaningfully lighter, and a release artifact has to target
+  one or build both. Decide before the packaging work, not after.
 
 The question is whether 512 MB survives an on-device Vite build. Measured on a
 Pi 4 (1 GB) with Klipper, the API and nginx all running:
@@ -91,10 +106,14 @@ ceilings are nowhere near the limit. Either way the A+ becomes viable as a side
 effect of shipping a prebuilt bundle rather than as separate work, so the
 cheapest path is to do that and stop caring what the build costs.
 
-Two caveats that survive even then: 512 MB leaves little headroom for camera
-encoding, and the A+ has no Ethernet, so on a headless unit a bad WiFi
-configuration cannot be recovered without pulling the SD card. The second is a
-support-process problem for a shipped product, not a technical one.
+**The open technical risk is the camera.** It is a Phase 2 feature and does not
+exist yet — the UI controls for it are inert — and it is the only genuinely
+heavy workload in the product. 512 MB alongside continuous H.264 encode is
+exactly where this choice could fail. The SoC has the hardware encoder, so
+timelapse stills should be fine; live streaming is the case to prove. **Validate
+camera capture on an A+ before locking the target**, because discovering it
+later means either dropping a planned feature or changing the board after the
+chassis is designed around it.
 
 Prerequisites whenever this starts: there is no CI yet, and the two version
 strings (`pyproject.toml`, `frontend/package.json`) are unmanaged — a release

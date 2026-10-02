@@ -21,15 +21,23 @@
   [deploy/README.md](deploy/README.md) for which
 
 ## Compute and monitoring
-- Raspberry Pi 4 (1 GB is sufficient). **Raspberry Pi 3 Model B+ is the floor** —
-  it keeps the 85 × 56 mm outline and mounting hole positions, the standard 15-pin
-  CSI camera connector, 1 GB of RAM and dual-band WiFi. Model B (not B+) also fits
-  but is 2.4 GHz only. Do **not** substitute a Pi 3 Model A+ or a Zero 2 W: both
-  are a different board outline with different mounting holes, and both are
-  512 MB. The Zero 2 W additionally uses the narrow 22-pin CSI connector
-- Note that a Pi 3 B+ and a Pi 4 share mounting holes but **not** port positions —
-  the Pi 4 has two micro-HDMI jacks, USB-C power, and Ethernet and USB swapped.
-  An enclosure needs either a generous port opening or two faceplates
+- **Production target: Raspberry Pi 3 Model A+.** Chosen on cost. Same BCM2837B0
+  and 1.4 GHz quad A53 as the 3 B+, dual-band WiFi, the standard 15-pin CSI
+  camera connector, and the same 40-pin pinout — so nothing about the wiring or
+  the camera ribbon changes. What differs: 512 MB RAM, a single USB-A port
+  (the SKR takes it), no Ethernet, and a smaller 65 × 56 mm board with its own
+  mounting pattern. See the hardware notes in [ROADMAP.md](ROADMAP.md) for the
+  two things still to validate before this is locked
+- **Development: Raspberry Pi 4 (1 GB) or Pi 3 Model B+.** A 3 B+ keeps the
+  85 × 56 mm outline and mounting holes of the Pi 4; a Pi 4 and a 3 B+ share
+  mounting holes but **not** port positions, since the Pi 4 has two micro-HDMI
+  jacks, USB-C power, and Ethernet and USB swapped
+- Not suitable: Pi Zero / Zero W and any ARMv6 Pi (no 64-bit, and NodeSource
+  ships no ARMv6 packages). A Zero 2 W runs but uses the narrow 22-pin CSI
+  connector, so the camera ribbon would differ
+- Enclosure needs to carry both the A+ and a development board — different
+  outlines and different port faces, so plan for two mounting patterns rather
+  than one
 - MicroSD card
 - Pi Camera v2 or compatible CSI camera
 - USB power and breakout hardware as needed
