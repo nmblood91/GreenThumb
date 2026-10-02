@@ -131,14 +131,20 @@ number of LEDs you can count.
 
 ### Fuse Holders
 - Inline fuse holders with **16 AWG or larger wire leads**
-- Crimp or solder connections; avoid push-in connectors for safety
+- Crimp, solder, or use lever connectors (Wago 221 or similar). What to avoid is
+  the push-fit "stab-in" type, where the conductor is held only by a spring barb
+  and cannot be inspected or re-seated — a lever connector is a different thing
+  and is fine on these currents
 - Keep fuses accessible for quick replacement
 
 ### Pump Wiring
 - 14-16 AWG wire rated for 12V
-- Use either the pump's native connector or solder with heat shrink tubing
 - Both pump leads land on the SKR's HE0 connector, not on the busbar — that is
   what lets Klipper switch it
+- The flyback diode and the pump leads meet at a pair of 3-way lever connectors
+  beside the pump, rather than being soldered to the pump terminals. The diode
+  is the part most worth being able to inspect, and that junction keeps it
+  openable — see [deploy/README.md](deploy/README.md)
 
 ### LED Strip Wiring
 - 18-20 AWG is ample for 1.5A over the length of the frame

@@ -71,6 +71,9 @@ inverted.
 - Inline fuse holders, 16 AWG leads, one per fuse above
 - Flyback diode for the pump: 1N5822 (3A Schottky), required — see
   [POWER_SYSTEM.md](POWER_SYSTEM.md)
+- 2x 3-way lever connectors (Wago 221 or similar) — the diode and the pump leads
+  land here rather than being soldered to the pump terminals, see
+  [deploy/README.md](deploy/README.md)
 - 74AHCT125 level shifter for the LED data line
 - Busbar / power distribution block
 - Wiring harness and cable routing

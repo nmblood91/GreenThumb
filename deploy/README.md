@@ -380,14 +380,60 @@ backwards, the fuse is the thing that goes.
 reversed, the diode sits forward-biased across 12V as a dead short and blows the
 1A pump fuse the moment you power up.
 
-Solder it to the pump terminals and heat-shrink each leg, or solder across the
-leads close to the pump. Wire between the diode and the motor is unprotected
-inductance, so keep it short.
-
 Part: a **1N5822** (3A Schottky) is comfortable overkill for a 0.2-0.3A pump and
 costs the same as anything smaller, so it is the easy choice. A 1N5817 or 1N4001
 is electrically adequate here too. Schottky parts switch faster and clamp the
 spike more cleanly than a 1N400x.
+
+### Mounting it: a junction block at the pump
+
+Mount the diode on a pair of 3-way lever connectors (Wago 221 or similar) next
+to the pump. Nothing is soldered to the pump terminals: the diode is the part
+most worth being able to inspect or replace, and a joint you cannot open is a
+joint you cannot check. All three slots of a lever connector are one node
+internally, so each block becomes a junction of three conductors:
+
+```
+  SKR HE0 "12/24V" ──[1A fast-blow]──┐
+                                     │
+                          ┌──────────┴──────────┐
+                          │  "+" BLOCK (3-way)  │   fused feed · cathode · pump+
+                          └────┬──────────┬─────┘
+                               │          │
+                 STRIPED end  ═╧═         └──────────→ Pump (+)
+                               ▲  1N5822
+                               │
+                          ┌────┴─────────────────┐
+                          │  "−" BLOCK (3-way)   │   PC8 · anode · pump−
+                          └────┬──────────┬──────┘
+                               │          └──────────→ Pump (−)
+  SKR HE0 "PC8" ───────────────┘
+```
+
+That puts the diode in parallel with the motor, cathode to positive, downstream
+of the fuse — the topology the diagram above describes. Four things to respect:
+
+- **Keep the block-to-pump leads short**, under about 10 cm, with the two leads
+  running together. Wire between the diode and the winding is unprotected
+  inductance, which is the whole thing the diode exists to absorb.
+- **The "+" block is live whenever the SKR is powered.** HE0's 12/24V pin is the
+  board's input rail, not a switched output — the pump is off because PC8 is
+  open, not because the positive side is dead. Power the board down before
+  opening the block, and do not assume an idle pump means a safe node.
+- **Seat the diode leads fully.** They are stiff 0.9 mm solid wire, within a
+  Wago 221's range, but leave a few millimetres straight out of the diode body
+  before any bend so the glass seal is not stressed, and sleeve the legs.
+- **Label the block.** Reinstalling the diode backwards during maintenance is
+  the one mistake that costs a mosfet, and nothing about the assembled block
+  makes the orientation obvious.
+
+Before powering it, check continuity across the pump terminals both ways with
+the board off: the motor winding in one direction, the diode's forward drop in
+the other. A dead short either way means a reversed diode or a bridged lead.
+
+If the pump is mounted through an enclosure wall with the tube head outside and
+the motor terminals inside, the block belongs inside with the terminals. Mount it
+above the pump rather than beneath it.
 
 The pump is declared in `printer.cfg` as an `[output_pin]`, not a heater:
 
