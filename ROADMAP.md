@@ -22,9 +22,38 @@
 - improve user experience and UI polish
 - harden the physical design and wiring harness
 - simplify installation and setup steps
+- replace `git pull` with a real update mechanism — see below
 - build a service and support process
 - create a replacement parts catalog
 - define quality control and calibration procedures
+
+### Updates, eventually
+
+Not a near-term task, but worth recording now so the constraint is not
+rediscovered later.
+
+`git pull` is not an update mechanism. It brings new source, but the systemd
+units, the nginx config, `printer.cfg.example` and any `requirements.txt` change
+are only applied by re-running the install script, and the frontend has to be
+rebuilt on the device. So a user who pulls gets a partial update, silently, and
+the device needs Node and `node_modules` purely to regenerate a static bundle.
+
+What we want instead:
+
+- **Users should not have to SSH in at all.** An update action in the web UI, or
+  unattended upgrades, with SSH as the fallback for support rather than the
+  supported path.
+- **If someone does SSH in, one line should do it** — ideally a Debian package,
+  so the whole thing is `sudo apt update && sudo apt upgrade`. A `.deb` can carry
+  a prebuilt frontend, the systemd units, the nginx config and the Python deps as
+  one versioned artifact, and its `postinst` can do the `printer.cfg`
+  backup-and-merge the install script does today.
+- **Build the frontend once, in CI, not on every device.** That also drops the
+  Node toolchain from the shipped image, which is what makes a 512 MB Pi viable.
+
+Prerequisites whenever this starts: there is no CI yet, and the two version
+strings (`pyproject.toml`, `frontend/package.json`) are unmanaged — a release
+artifact needs one source of truth for version.
 
 ## Phase 4: Commercial launch
 - package the product as a sellable smart planter system

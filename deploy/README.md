@@ -138,6 +138,11 @@ files and left the checkout permanently dirty — and then the next `git pull`
 aborted with "local changes would be overwritten by merge". If you hit that on an
 older checkout, see **Recovering a diverged checkout** below.
 
+Taken together, the above is why **`git pull` is a developer workflow, not an
+update mechanism** — too much of an update lives outside what a pull applies. A
+shippable path is sketched under *Updates, eventually* in
+[ROADMAP.md](../ROADMAP.md).
+
 **Re-running regenerates `printer.cfg` from the template.** The template is the
 source of truth, which is how a config fix in the repo reaches the Pi, but it
 means local tuning is replaced. Anything that differs is backed up first to
