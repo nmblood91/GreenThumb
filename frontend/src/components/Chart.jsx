@@ -11,9 +11,15 @@ export function Chart({ data, series, markers = [], height = 320, yRange, yLabel
   const plotRef = useRef(null)
 
   // Read through a ref inside the draw hook so new waterings repaint without
-  // tearing down and rebuilding the whole plot on every fetch.
+  // tearing down and rebuilding the whole plot on every fetch. Updated in an
+  // effect rather than assigned during render: mutating a ref while rendering
+  // is not safe under concurrent rendering, where a render can be discarded.
+  // Declared before the setData effect below so the ref is current by the time
+  // new data triggers a redraw.
   const markersRef = useRef(markers)
-  markersRef.current = markers
+  useEffect(() => {
+    markersRef.current = markers
+  }, [markers])
 
   useEffect(() => {
     const container = containerRef.current
@@ -81,6 +87,11 @@ export function Chart({ data, series, markers = [], height = 320, yRange, yLabel
       plotRef.current = null
     }
     // Rebuilt only when the plot's shape changes, not when its data does.
+    // `data` is read above to seed the plot but is deliberately not a
+    // dependency: including it would tear down and recreate uPlot on every
+    // poll, losing any zoom or cursor state. The effect below pushes new data
+    // into the existing instance instead.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [series, height, yRange, yLabel])
 
   useEffect(() => {

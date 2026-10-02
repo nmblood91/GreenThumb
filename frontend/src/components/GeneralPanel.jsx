@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 // Relative so the page works from any device. An absolute localhost URL resolves
 // to whatever machine the browser is on, not the Pi.
@@ -36,7 +36,7 @@ const UI_MODE_BY_BACKEND = {
 
 const DEFAULT_COLOR_ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR']
 
-export function GeneralPanel({ overview, cameraStatus }) {
+export function GeneralPanel({ overview }) {
   const [settings, setSettings] = useState({
     ledMode: 'schedule',
     brightness: 75,
@@ -73,7 +73,11 @@ export function GeneralPanel({ overview, cameraStatus }) {
   const chipOptions = lighting?.chip_options ?? []
   const delivery = overview?.delivery
 
-  useEffect(() => {
+  // Form state follows the overview, and resyncing during render rather than
+  // in an effect avoids painting one frame of the old values after a refresh.
+  const [syncedOverview, setSyncedOverview] = useState(null)
+  if (overview !== syncedOverview) {
+    setSyncedOverview(overview)
     setSettings((current) => ({
       ...current,
       ledMode: UI_MODE_BY_BACKEND[lighting?.mode] ?? current.ledMode,
@@ -83,7 +87,7 @@ export function GeneralPanel({ overview, cameraStatus }) {
       colorOrder: lighting?.color_order ?? current.colorOrder,
       cameraEnabled: overview?.camera_enabled ?? current.cameraEnabled,
     }))
-  }, [overview])
+  }
 
   const saveSettings = async () => {
     try {

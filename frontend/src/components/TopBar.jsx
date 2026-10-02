@@ -1,4 +1,4 @@
-export function TopBar({ loading }) {
+export function TopBar() {
   return (
     <header className="topbar">
       <div>

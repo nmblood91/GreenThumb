@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 const draftFrom = (zone) => ({
   name: zone.name,
@@ -13,9 +13,14 @@ export function ZonesPanel({ zones, onSave, onWater }) {
   const [drafts, setDrafts] = useState({})
   const [expandedZoneIds, setExpandedZoneIds] = useState([])
 
-  useEffect(() => {
+  // Drafts mirror the zones prop, and resyncing them during render rather than
+  // in an effect means the inputs never paint one frame of stale values after
+  // a save. React re-runs this component immediately, before touching the DOM.
+  const [syncedZones, setSyncedZones] = useState(null)
+  if (zones !== syncedZones) {
+    setSyncedZones(zones)
     setDrafts(Object.fromEntries(zones.map((zone) => [zone.zone_id, draftFrom(zone)])))
-  }, [zones])
+  }
 
   const toggleZoneExpanded = (zoneId) => {
     setExpandedZoneIds((current) =>

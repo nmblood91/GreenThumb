@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { TopBar } from './components/TopBar'
 import { TabBar } from './components/TabBar'
 import { GantryPanel } from './components/GantryPanel'
@@ -11,36 +11,35 @@ import './App.css'
 
 const API_BASE = '/api/v1'
 
+const fetchJson = async (path, options = {}) => {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  })
+
+  const data = await response.json()
+  if (!response.ok) {
+    throw new Error(data.detail || data.error || 'Request failed')
+  }
+
+  return data
+}
+
+
 function App() {
   const [activeTab, setActiveTab] = useState('gantry')
   const [overview, setOverview] = useState(null)
   const [zones, setZones] = useState([])
   const [logs, setLogs] = useState([])
   const [status, setStatus] = useState('Loading GreenThumb...')
-  const [loading, setLoading] = useState(true)
-
-  const fetchJson = async (path, options = {}) => {
-    const response = await fetch(`${API_BASE}${path}`, {
-      headers: { 'Content-Type': 'application/json' },
-      ...options,
-    })
-
-    const data = await response.json()
-    if (!response.ok) {
-      throw new Error(data.detail || data.error || 'Request failed')
-    }
-
-    return data
-  }
 
   // Motion endpoints answer 200 with {ok: false, error} when Klipper refuses
   // the move, so a successful request is not a successful move.
   const describeResult = (result) =>
     result?.ok === false ? `failed - ${result.error}` : 'ok'
 
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     try {
-      setLoading(true)
       const [overviewData, zonesData, logsData] = await Promise.all([
         fetchJson('/overview'),
         fetchJson('/zones'),
@@ -57,19 +56,24 @@ function App() {
       }
     } catch (error) {
       setStatus(`Connection failed: ${error.message}`)
-    } finally {
-      setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    loadDashboard()
+    // Stable: it closes over nothing reactive, so the mount effect below can
+    // depend on it honestly instead of suppressing the dependency warning.
   }, [])
 
-  const cameraStatus = useMemo(() => {
-    if (!overview) return 'Camera stream offline'
-    return overview.camera_status || 'Camera stream offline'
-  }, [overview])
+  useEffect(() => {
+    // Guarded rather than a bare loadDashboard(): a response that lands after
+    // the component is gone would set state on nothing, and setting state
+    // straight from an effect body is what the hooks lint objects to.
+    let cancelled = false
+    async function loadOnMount() {
+      if (!cancelled) await loadDashboard()
+    }
+    loadOnMount()
+    return () => {
+      cancelled = true
+    }
+  }, [loadDashboard])
 
   const gantryPosition = useMemo(() => {
     const movement = overview?.movement ?? {}
@@ -183,7 +187,7 @@ function App() {
 
   return (
     <div className="app-shell">
-      <TopBar loading={loading} />
+      <TopBar />
       <TabBar activeTab={activeTab} onChange={setActiveTab} />
       <div className="status-bar">{status}</div>
 
@@ -199,7 +203,7 @@ function App() {
 
       {activeTab === 'general' && (
         <>
-          <GeneralPanel overview={overview} cameraStatus={cameraStatus} />
+          <GeneralPanel overview={overview} />
           {/* Fetches and refreshes its own calibration state: a run takes
               seconds and only this panel cares about the result. */}
           <CalibrationPanel />
