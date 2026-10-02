@@ -58,8 +58,26 @@ build still works, so prebuilt bundles are a reliability and install-time
 improvement rather than a hardware requirement; 64-bit Pi OS stays the only
 target, so a release artifact can be arm64-only; and the board outline, mounting
 holes and standard 15-pin CSI connector match the Pi 4, so one enclosure and one
-camera ribbon cover both. Anything smaller — Pi 3 A+, Zero 2 W — changes the
-mounting pattern and drops to 512 MB, which would reopen the 32-bit question.
+camera ribbon cover both. Anything smaller changes the mounting pattern and drops to
+512 MB, which would reopen the 32-bit question. [BOM.md](BOM.md) rules those out
+for now.
+
+**Dropping the floor to a Pi 3 Model A+ is worth revisiting once the frontend is
+no longer built on the device.** It is appealing on cost, and most of the
+objections do not actually apply: same BCM2837B0 and same 1.4 GHz quad A53 as the
+B+, same dual-band WiFi, same 40-pin pinout, and the same standard 15-pin CSI
+connector, so the camera ribbon is unaffected. Its smaller outline means a
+different mounting pattern, which is a chassis change rather than a blocker.
+
+The one hard blocker is the 512 MB of RAM against an on-device Vite build. The
+runtime stack fits; the build is the part that does not. So the A+ becomes viable
+as a side effect of shipping a prebuilt bundle, not as separate work — measure
+peak RSS of `npm install` and `npm run build` before committing either way.
+
+Two caveats that survive even then: 512 MB leaves little headroom for camera
+encoding, and the A+ has no Ethernet, so on a headless unit a bad WiFi
+configuration cannot be recovered without pulling the SD card. The second is a
+support-process problem for a shipped product, not a technical one.
 
 Prerequisites whenever this starts: there is no CI yet, and the two version
 strings (`pyproject.toml`, `frontend/package.json`) are unmanaged — a release
