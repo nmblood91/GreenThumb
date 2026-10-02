@@ -5,7 +5,7 @@ from datetime import datetime, time
 from typing import AsyncIterator
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from fastapi import Body, FastAPI, HTTPException, Request
+from fastapi import Body, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -127,11 +127,11 @@ def calibrate_moisture(endpoint: str, payload: dict[str, int] = Body(default_fac
     gantry move blocks for its travel, rather than introducing a job queue for
     one operation the user is standing in front of anyway.
     """
+    # A bad endpoint name raises ValueError and a watering cycle in progress
+    # raises HardwareBusyError; both already have app-level handlers that return
+    # the {"ok": false, "error": ...} shape the rest of the API uses.
     seconds = int(payload.get("seconds", 20))
-    try:
-        result = automation.calibrate_moisture(endpoint, seconds)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    result = automation.calibrate_moisture(endpoint, seconds)
     log_event(
         f"Moisture {endpoint} calibration: {result['stored']}/{result['total']} sensors stored"
     )

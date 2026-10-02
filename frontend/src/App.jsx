@@ -3,6 +3,7 @@ import { TopBar } from './components/TopBar'
 import { TabBar } from './components/TabBar'
 import { GantryPanel } from './components/GantryPanel'
 import { GeneralPanel } from './components/GeneralPanel'
+import { CalibrationPanel } from './components/CalibrationPanel'
 import { ZonesPanel } from './components/PlantsPanel'
 import { LogsPanel } from './components/LogsPanel'
 import { HistoryPanel } from './components/HistoryPanel'
@@ -197,7 +198,12 @@ function App() {
       )}
 
       {activeTab === 'general' && (
-        <GeneralPanel overview={overview} cameraStatus={cameraStatus} />
+        <>
+          <GeneralPanel overview={overview} cameraStatus={cameraStatus} />
+          {/* Fetches and refreshes its own calibration state: a run takes
+              seconds and only this panel cares about the result. */}
+          <CalibrationPanel />
+        </>
       )}
 
       {activeTab === 'plants' && (
