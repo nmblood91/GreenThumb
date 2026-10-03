@@ -15,7 +15,7 @@ from greenthumb.hardware.pump import PumpController
 from greenthumb.hardware.soil_sensors import SoilSensorHub, calibrate, unavailable_sample
 from greenthumb.history import DEFAULT_DB_PATH, HistoryStore
 from greenthumb.models import SensorSample, PlantSpec, PlantStatus
-from greenthumb.plants import default_plants, label_for, names_by_address
+from greenthumb.plants import default_plants, label_for
 from greenthumb import state
 
 logger = logging.getLogger(__name__)
@@ -417,17 +417,6 @@ class GreenThumbAutomation:
             self._pump_lock_held = False
             self._hardware_lock.release()
 
-    def check_water_supply(self) -> bool | None:
-        """Wet/dry/unknown at the outlet sensor right now.
-
-        This is a raw read, not a verdict. The outlet line drains between doses,
-        so dry is the normal idle state and means nothing on its own -- only a
-        read taken while the pump is running carries information.
-        """
-        if not settings.water_sensor_enabled:
-            return None
-        return self.klipper.water_supply_present()
-
     def _watch_delivery(
         self,
         duration_seconds: float,
@@ -699,18 +688,6 @@ class GreenThumbAutomation:
             "status": "ok",
             "brightness": result["brightness"],
         }
-
-    def home_motion_axis(self, axis: str) -> dict[str, object]:
-        with self._exclusive(f"Homing {axis}"):
-            return self.klipper.home_axis(axis)
-
-    def home_gantry(self) -> dict[str, object]:
-        with self._exclusive("Homing gantry"):
-            return self.klipper.home_gantry()
-
-    def move_axis_relative(self, x_mm: float = 0.0, y_mm: float = 0.0, z_mm: float = 0.0) -> dict[str, object]:
-        with self._exclusive("Axis move"):
-            return self.klipper.move_relative(x_mm=x_mm, y_mm=y_mm, z_mm=z_mm)
 
     def move_gantry_relative(self, distance_mm: float) -> dict[str, object]:
         with self._exclusive("Gantry move"):

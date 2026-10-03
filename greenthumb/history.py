@@ -39,12 +39,16 @@ CREATE INDEX IF NOT EXISTS idx_waterings_time ON waterings(recorded_at);
 """
 
 # Enough points to show shape without sending 129,600 of them for a 90 day range.
-TARGET_POINTS = 500
+# The most points any range can produce per series, which is what the chart has
+# to stay drawable at. The real worst case is 576, at 48 hours in five-minute
+# buckets; this is that rounded up for headroom. Exported so the test asserts
+# against the same number the buckets were chosen for, rather than its own.
+MAX_POINTS_PER_SERIES = 600
 MINUTE = 60
 
 
 def bucket_seconds_for(hours: float) -> int:
-    """Time bucket that keeps a range near TARGET_POINTS samples per series."""
+    """Time bucket keeping any range under MAX_POINTS_PER_SERIES per series."""
     if hours <= 6:
         return MINUTE
     if hours <= 48:

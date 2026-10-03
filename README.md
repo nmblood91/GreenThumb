@@ -69,7 +69,7 @@ Everything is under `/api/v1`, grouped roughly as:
 | `/overview`, `/sensors`, `/history`, `/logs` | reading current state, readings and history |
 | `/plants/...` | per-plant name, light window, moisture target, dose volume, rail position, and move-to |
 | `/water/{plant_id}` | move to a plant and dose it |
-| `/gantry/...`, `/motion/...` | homing and jogging |
+| `/gantry/home`, `/gantry/move` | homing and jogging the one axis |
 | `/pump/run`, `/pump/stop` | the pump directly, for bench testing |
 | `/lights/...` | mode, brightness, colour, strip type, colour order |
 | `/sensors/calibration...` | read, measure and reset per-sensor moisture calibration |

@@ -1,3 +1,6 @@
+# Exact pins for the Pi. The same package set as pyproject.toml's dependencies,
+# which carries minimum versions instead -- keep the two in step. The installer
+# applies this first and then `pip install -e .`, so these pins win.
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 pydantic-settings==2.4.0

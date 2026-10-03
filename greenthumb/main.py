@@ -47,6 +47,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     finally:
         scheduler.shutdown(wait=False)
         automation.leds.stop()
+        # The SQLite connection was being left open at shutdown. Closing it
+        # flushes cleanly rather than relying on the process exiting, which
+        # matters on a Pi that loses power more often than it is stopped.
+        automation.history.close()
 
 
 app = FastAPI(
@@ -185,15 +189,6 @@ async def get_logs(lines: int = 100) -> list[str]:
     return read_recent_logs(lines)
 
 
-@app.post(f"{settings.api_prefix}/logs/write")
-async def write_log(payload: dict[str, str] = Body(default_factory=dict)) -> dict[str, str]:
-    message = str(payload.get("message", "")).strip()
-    if not message:
-        return {"status": "ignored", "message": "empty"}
-    log_event(message)
-    return {"status": "ok", "message": message}
-
-
 @app.post(f"{settings.api_prefix}/water/{{plant_id}}")
 def water_plant(plant_id: str, volume_ml: int | None = None) -> dict[str, object]:
     result = automation.water_plant(plant_id, volume_ml)
@@ -281,13 +276,6 @@ async def set_light_brightness(payload: dict[str, int] = Body(default_factory=di
 
 # Declared last: a path parameter here matches anything, so it would otherwise
 # swallow /lights/mode, /lights/color, /lights/color-order and /lights/brightness.
-@app.post(f"{settings.api_prefix}/lights/{{mode}}")
-async def set_light_mode(mode: str) -> dict[str, object]:
-    result = automation.set_light_mode(mode)
-    log_event(f"LED mode changed to {mode}")
-    return result
-
-
 @app.get(f"{settings.api_prefix}/plants")
 async def list_plants() -> list[dict[str, object]]:
     plants = automation.plants
@@ -363,22 +351,6 @@ def move_gantry(payload: dict[str, float] = Body(default_factory=dict)) -> dict[
     distance_mm = float(payload.get("distance_mm", 0.0))
     return log_motion(
         automation.move_gantry_relative(distance_mm), f"Move gantry by {distance_mm} mm"
-    )
-
-
-@app.post(f"{settings.api_prefix}/motion/home/{{axis}}")
-def home_axis(axis: str) -> dict[str, object]:
-    return log_motion(automation.home_motion_axis(axis), f"Home axis {axis}")
-
-
-@app.post(f"{settings.api_prefix}/motion/move")
-def move_axis(payload: dict[str, float] = Body(default_factory=dict)) -> dict[str, object]:
-    x_mm = float(payload.get("x_mm", 0.0))
-    y_mm = float(payload.get("y_mm", 0.0))
-    z_mm = float(payload.get("z_mm", 0.0))
-    return log_motion(
-        automation.move_axis_relative(x_mm=x_mm, y_mm=y_mm, z_mm=z_mm),
-        f"Manual axis move x={x_mm} y={y_mm} z={z_mm}",
     )
 
 

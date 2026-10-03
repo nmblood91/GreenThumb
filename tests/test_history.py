@@ -12,7 +12,7 @@ from pathlib import Path
 # The hardware modules import smbus2, which only exists on the Pi.
 sys.modules.setdefault("smbus2", types.ModuleType("smbus2"))
 
-from greenthumb.history import HistoryStore, bucket_seconds_for  # noqa: E402
+from greenthumb.history import MAX_POINTS_PER_SERIES, HistoryStore, bucket_seconds_for  # noqa: E402
 from greenthumb.models import SensorSample  # noqa: E402
 
 HOUR = 3600
@@ -35,8 +35,10 @@ assert bucket_seconds_for(24 * 7) == 1800
 assert bucket_seconds_for(24 * 90) == 21600
 for hours in (1, 6, 24, 48, 24 * 7, 24 * 30, 24 * 90):
     points = hours * 3600 / bucket_seconds_for(hours)
-    assert points <= 600, f"{hours}h yields {points:.0f} points, too many to draw"
-print("ok: every range stays under 600 points per series")
+    assert points <= MAX_POINTS_PER_SERIES, (
+        f"{hours}h yields {points:.0f} points, over the {MAX_POINTS_PER_SERIES} cap"
+    )
+print(f"ok: every range stays under {MAX_POINTS_PER_SERIES} points per series")
 
 
 # --- failed reads are never stored ---
