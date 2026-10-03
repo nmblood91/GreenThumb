@@ -6,6 +6,13 @@ const API_BASE = '/api/v1'
 
 const SAMPLE_SECONDS = 20
 
+// The endpoints are the two ends of the sensor's range, so saying which end was
+// just written is clearer than repeating "dry" or "wet" on its own.
+const ENDPOINT_NOUN = {
+  dry: 'dry min',
+  wet: 'wet max',
+}
+
 const INSTRUCTIONS = {
   dry: 'All sensors should be out of any soil, clean and dry, sitting in open air.',
   wet: 'The sensors should be in water — only up to the heat shrink.',
@@ -179,7 +186,9 @@ export function CalibrationPanel() {
               <p className="field-hint" key={sensor.address}>
                 <strong>{sensor.label || sensor.address}</strong>{' '}
                 {sensor.written
-                  ? `stored ${sensor.value} (readings spread ${sensor.spread} points over ${sensor.samples} samples)`
+                  ? `stored ${ENDPOINT_NOUN[results.endpoint] ?? results.endpoint} as ` +
+                    `${sensor.value}. Readings spread ${sensor.spread} points over ` +
+                    `${sensor.samples} samples.`
                   : `not stored — ${sensor.reason}`}
               </p>
             ))}
