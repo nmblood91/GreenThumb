@@ -358,9 +358,12 @@ button:disabled.working {
   margin-top: 14px;
 }
 
+/* One card per row. These are expandable settings forms rather than summary
+   tiles, so side-by-side columns made each one narrow enough to cramp the
+   fields inside, and an expanded card dragged the height of its whole row. */
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: 1fr;
   gap: 16px;
   margin-top: 16px;
 }
