@@ -88,6 +88,14 @@ class GreenThumbAutomation:
         self._pump_timer: threading.Timer | None = None
         self._pump_lock_held = False
 
+        self.quiet_hours_enabled = settings.quiet_hours_enabled
+        self.quiet_hours_start = time.fromisoformat(settings.quiet_hours_start)
+        self.quiet_hours_stop = time.fromisoformat(settings.quiet_hours_stop)
+        # Absolute instant, not a duration, so it survives a restart with the
+        # right amount of time left rather than starting over -- and a Pi that
+        # was off for a week comes back with it already expired.
+        self.snooze_until: datetime | None = None
+
         self.plants = default_plants()
         self.apply_default_led_ranges()
         self._warn_on_orphaned_plants()
@@ -149,9 +157,37 @@ class GreenThumbAutomation:
                 except ValueError:
                     logger.warning("Ignoring bad %s %r", field_name, text)
 
+        quiet = stored.get("quiet")
+        if isinstance(quiet, dict):
+            self._restore_quiet_state(quiet)
+
         leds = stored.get("leds")
         if isinstance(leds, dict):
             self._restore_led_state(leds)
+
+    def _restore_quiet_state(self, quiet: dict) -> None:
+        if isinstance(quiet.get("enabled"), bool):
+            self.quiet_hours_enabled = quiet["enabled"]
+        for key, attr in (("start", "quiet_hours_start"), ("stop", "quiet_hours_stop")):
+            text = quiet.get(key)
+            if not isinstance(text, str):
+                continue
+            try:
+                setattr(self, attr, time.fromisoformat(text))
+            except ValueError:
+                logger.warning("Ignoring bad quiet hours %s %r", key, text)
+
+        text = quiet.get("snooze_until")
+        if isinstance(text, str):
+            try:
+                restored = datetime.fromisoformat(text)
+            except ValueError:
+                logger.warning("Ignoring bad snooze_until %r", text)
+                return
+            # Dropped rather than restored once it is in the past, so a Pi that
+            # was off overnight does not come back still holding a stale snooze.
+            if restored > datetime.now():
+                self.snooze_until = restored
 
     def _restore_led_state(self, leds: dict) -> None:
         # Chip first: selecting one resets the channel order to that chip's
@@ -198,6 +234,12 @@ class GreenThumbAutomation:
             # getattr throughout: a controller that does not expose one of
             # these simply has it left out of the snapshot, rather than a
             # settings save failing because of an LED attribute.
+            "quiet": {
+                "enabled": self.quiet_hours_enabled,
+                "start": self.quiet_hours_start.isoformat(timespec="minutes"),
+                "stop": self.quiet_hours_stop.isoformat(timespec="minutes"),
+                "snooze_until": self.snooze_until.isoformat() if self.snooze_until else None,
+            },
             "leds": {
                 key: value
                 for key, value in (
@@ -287,7 +329,14 @@ class GreenThumbAutomation:
             with self._exclusive("Control loop tick"):
                 self._poll_sensors()
                 if settings.auto_watering_enabled:
-                    self._run_watering_cycle()
+                    held = self.watering_suppressed()
+                    if held:
+                        # Debug rather than info: this fires every minute for
+                        # hours, and at info it would bury the log the user
+                        # reads to find out what actually happened.
+                        logger.debug("Not watering automatically, %s", held)
+                    else:
+                        self._run_watering_cycle()
         except HardwareBusyError:
             logger.info("Skipping control loop tick, hardware is busy")
         except Exception:
@@ -334,6 +383,65 @@ class GreenThumbAutomation:
         # being dropped from the averaged value -- the one that actually decides
         # watering and feeds the overview.
         return self.sensor_hub.raw_to_percent(sum(window) / len(window), address)
+
+    # --- quiet hours and snooze ------------------------------------------
+
+    def watering_suppressed(self, now: datetime | None = None) -> str | None:
+        """Why automatic watering is being held back, or None if it is not.
+
+        Returns the reason rather than a bare bool so the UI and the log can
+        say which of the two is in force. A plant that comes due during a quiet
+        period is not skipped, only deferred: the loop runs every minute and
+        waters it on the first tick after the window closes.
+        """
+        moment = now or datetime.now()
+
+        if self.snooze_until and moment < self.snooze_until:
+            return f"snoozed until {self.snooze_until.strftime('%H:%M')}"
+
+        if self.quiet_hours_enabled and within_window(
+            moment.time(), self.quiet_hours_start, self.quiet_hours_stop
+        ):
+            return (
+                f"quiet hours until {self.quiet_hours_stop.strftime('%H:%M')}"
+            )
+        return None
+
+    def set_quiet_hours(self, enabled: bool, start: str | None = None, stop: str | None = None) -> dict[str, object]:
+        if start is not None:
+            self.quiet_hours_start = time.fromisoformat(start)
+        if stop is not None:
+            self.quiet_hours_stop = time.fromisoformat(stop)
+        self.quiet_hours_enabled = bool(enabled)
+        self._persist()
+        return self.quiet_status()
+
+    def snooze_watering(self, hours: float) -> dict[str, object]:
+        """Hold off automatic watering for a while, from now."""
+        if hours <= 0:
+            raise ValueError("Snooze length must be positive")
+        if hours > 24:
+            raise ValueError("Snooze is capped at 24 hours")
+        self.snooze_until = datetime.now() + timedelta(hours=hours)
+        self._persist()
+        logger.info("Automatic watering snoozed until %s", self.snooze_until)
+        return self.quiet_status()
+
+    def cancel_snooze(self) -> dict[str, object]:
+        self.snooze_until = None
+        self._persist()
+        logger.info("Watering snooze cancelled")
+        return self.quiet_status()
+
+    def quiet_status(self) -> dict[str, object]:
+        return {
+            "status": "ok",
+            "quiet_hours_enabled": self.quiet_hours_enabled,
+            "quiet_hours_start": self.quiet_hours_start.isoformat(timespec="minutes"),
+            "quiet_hours_stop": self.quiet_hours_stop.isoformat(timespec="minutes"),
+            "snooze_until": self.snooze_until.isoformat(timespec="minutes") if self.snooze_until else None,
+            "suppressed_because": self.watering_suppressed(),
+        }
 
     def _run_watering_cycle(self) -> None:
         for plant in self.plants:
@@ -547,6 +655,9 @@ class GreenThumbAutomation:
                 "last": self._last_delivery,
             },
             "plants": [status.__dict__ for status in plant_status],
+            # So the UI can say why nothing is watering rather than leaving it
+            # looking broken.
+            "quiet": self.quiet_status(),
         }
 
     def get_history(self, hours: float) -> dict[str, object]:

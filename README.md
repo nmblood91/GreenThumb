@@ -71,6 +71,7 @@ Everything is under `/api/v1`, grouped roughly as:
 | `/water/{plant_id}` | move to a plant and dose it |
 | `/gantry/home`, `/gantry/move` | homing and jogging the one axis |
 | `/pump/run`, `/pump/stop` | the pump directly, for bench testing |
+| `/quiet`, `/quiet/hours`, `/quiet/snooze`, `/quiet/resume` | quiet hours and the snooze |
 | `/lights/...` | mode, brightness, colour, strip type, colour order |
 | `/sensors/calibration...` | read, measure and reset per-sensor moisture calibration |
 | `/system/time`, `/system/timezone` | the planter's clock |

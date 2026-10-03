@@ -57,6 +57,15 @@ class Settings(BaseSettings):
     auto_watering_enabled: bool = False
     watering_cooldown_minutes: int = 30
 
+    # Quiet hours. The pump and the gantry are the only loud parts of this
+    # machine, and it lives in a room people sit in. Suppresses *automatic*
+    # watering only: a dose you asked for by pressing a button still runs,
+    # because you are standing there and already know the noise is coming.
+    # Defaults here; the UI persists any change to data/state.json.
+    quiet_hours_enabled: bool = False
+    quiet_hours_start: str = "21:00"
+    quiet_hours_stop: str = "08:00"
+
     # Requires the liquid sensor clamped to the outlet tube, on the falling leg
     # between the high point and the nozzle, with its polarity confirmed.
     #

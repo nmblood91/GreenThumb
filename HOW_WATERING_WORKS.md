@@ -61,14 +61,15 @@ no history, and no history means no way to tell a real trend from a fluke.
 
 ## What has to be true before it waters
 
-Every minute, for each pot, the planter asks four questions in order. **All four
+Every minute, for each pot, the planter asks five questions in order. **All five
 must be yes** or it moves on and tries again next minute.
 
-1. **Do I have ten readings yet?** If it just started up, no — wait.
-2. **Is the ten-minute average below the target for this plant?** Each pot has
+1. **Am I allowed to make noise right now?** See quiet hours below.
+2. **Do I have ten readings yet?** If it just started up, no — wait.
+3. **Is the ten-minute average below the target for this plant?** Each pot has
    its own target, because a fern and a succulent don't want the same thing.
-3. **Has it been at least 30 minutes since I last watered this pot?** See below.
-4. **Did the arm actually reach the pot?** If the arm can't move — it isn't
+4. **Has it been at least 30 minutes since I last watered this pot?** See below.
+5. **Did the arm actually reach the pot?** If the arm can't move — it isn't
    calibrated, something is in the way — the planter refuses to run the pump.
    Watering the wrong spot is worse than not watering.
 
@@ -99,6 +100,33 @@ When a pour delivers nothing, the planter says so in the status bar, writes a
 warning to the log, and marks it on the history chart in the Sensors tab as a **solid red line**
 instead of the usual dashed one. Nothing gets blocked — the next pour tries
 again — so refilling the tank quietly fixes it with nothing to reset.
+
+## Quiet hours, and the snooze
+
+The pump and the carriage are the only loud parts of this machine, and it lives
+in a room people sit in. So automatic watering can be held back two ways:
+
+- **Quiet hours** — a nightly window, set in Settings. A window that ends before
+  it starts runs through midnight, so 21:00 to 08:00 means overnight.
+- **Snooze** — one tap in Controls for 1, 2 or 4 hours, for when you are
+  watching something and do not want the pump starting up behind you.
+
+Two things worth knowing about both:
+
+**Watering you ask for yourself is never blocked.** Pressing Water on a plant
+runs it immediately, quiet hours or not. You are standing there; you already
+know the noise is coming.
+
+**A thirsty plant is deferred, not skipped.** The check runs every minute
+regardless, so a pot that crosses its threshold at midnight is watered on the
+first pass after the window ends rather than waiting another full day. The
+Controls tab says which of the two is in force and until when, so a planter
+that is deliberately not watering never looks like one that is broken.
+
+A snooze is stored as a moment in time rather than a countdown, so it survives
+a restart with the right amount left — and one that expired while the planter
+was powered off is simply gone, rather than resuming for its remaining hours
+at some arbitrary later date.
 
 ## The half-hour wait, and why it matters
 

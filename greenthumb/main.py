@@ -143,6 +143,41 @@ def set_system_timezone(payload: dict[str, str] = Body(default_factory=dict)) ->
     return result
 
 
+@app.get(f"{settings.api_prefix}/quiet")
+def get_quiet() -> dict[str, object]:
+    return automation.quiet_status()
+
+
+@app.post(f"{settings.api_prefix}/quiet/hours")
+def set_quiet_hours(payload: dict[str, object] = Body(default_factory=dict)) -> dict[str, object]:
+    """Set the nightly window in which automatic watering is held back."""
+    result = automation.set_quiet_hours(
+        enabled=bool(payload.get("enabled", False)),
+        start=payload.get("start"),
+        stop=payload.get("stop"),
+    )
+    log_event(
+        f"Quiet hours {'on' if result['quiet_hours_enabled'] else 'off'} "
+        f"({result['quiet_hours_start']}-{result['quiet_hours_stop']})"
+    )
+    return result
+
+
+@app.post(f"{settings.api_prefix}/quiet/snooze")
+def snooze_watering(payload: dict[str, float] = Body(default_factory=dict)) -> dict[str, object]:
+    """Hold automatic watering off for a few hours, starting now."""
+    result = automation.snooze_watering(float(payload.get("hours", 1)))
+    log_event(f"Automatic watering snoozed until {result['snooze_until']}")
+    return result
+
+
+@app.post(f"{settings.api_prefix}/quiet/resume")
+def cancel_snooze() -> dict[str, object]:
+    result = automation.cancel_snooze()
+    log_event("Watering snooze cancelled")
+    return result
+
+
 @app.get(f"{settings.api_prefix}/sensors/calibration")
 def get_moisture_calibration() -> dict[str, object]:
     return automation.moisture_calibration()

@@ -3,7 +3,7 @@ import { API_BASE } from '../api'
 
 const DEFAULT_COLOR_ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR']
 
-export function SettingsPanel({ overview }) {
+export function SettingsPanel({ overview, onQuietChange }) {
   const lighting = overview?.lighting
   const colorOrderOptions = lighting?.color_order_options ?? DEFAULT_COLOR_ORDERS
   const chipOptions = lighting?.chip_options ?? []
@@ -11,6 +11,12 @@ export function SettingsPanel({ overview }) {
   const [chip, setChip] = useState('WS2812B')
   const [colorOrder, setColorOrder] = useState('GRB')
   const [status, setStatus] = useState('')
+
+  const quiet = overview?.quiet
+  const [quietOn, setQuietOn] = useState(false)
+  const [quietStart, setQuietStart] = useState('21:00')
+  const [quietStop, setQuietStop] = useState('08:00')
+  const [quietMsg, setQuietMsg] = useState('')
 
   const [clock, setClock] = useState(null)
   const [clockStatus, setClockStatus] = useState('')
@@ -87,6 +93,9 @@ export function SettingsPanel({ overview }) {
   if (overview !== syncedOverview) {
     setSyncedOverview(overview)
     setChip(lighting?.chip ?? chip)
+    setQuietOn(quiet?.quiet_hours_enabled ?? quietOn)
+    setQuietStart(quiet?.quiet_hours_start ?? quietStart)
+    setQuietStop(quiet?.quiet_hours_stop ?? quietStop)
     setColorOrder(lighting?.color_order ?? colorOrder)
   }
 
@@ -114,6 +123,26 @@ export function SettingsPanel({ overview }) {
       setStatus('Saved.')
     } catch (error) {
       setStatus(`Save failed: ${error.message}`)
+    }
+  }
+
+  const saveQuiet = async () => {
+    setQuietMsg('')
+    try {
+      const response = await fetch(`${API_BASE}/quiet/hours`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: quietOn, start: quietStart, stop: quietStop }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setQuietMsg(data.error || `Save failed (HTTP ${response.status})`)
+        return
+      }
+      setQuietMsg('Saved.')
+      onQuietChange?.()
+    } catch (error) {
+      setQuietMsg(`Save failed: ${error.message}`)
     }
   }
 
@@ -155,6 +184,44 @@ export function SettingsPanel({ overview }) {
             Choosing a strip type resets this to that chip's usual order, so set
             the type first.
           </p>
+        </div>
+
+        <div className="field-row">
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={quietOn}
+              onChange={(event) => setQuietOn(event.target.checked)}
+            />
+            Quiet hours
+          </label>
+          <div className="slider-row">
+            <label>
+              From
+              <input
+                type="time"
+                value={quietStart}
+                onChange={(event) => setQuietStart(event.target.value)}
+              />
+            </label>
+            <label>
+              To
+              <input
+                type="time"
+                value={quietStop}
+                onChange={(event) => setQuietStop(event.target.value)}
+              />
+            </label>
+            <button type="button" onClick={saveQuiet}>Save quiet hours</button>
+          </div>
+          <p className="field-hint">
+            Holds off <em>automatic</em> watering overnight — the pump and the
+            gantry are the only loud parts. A window that ends before it starts
+            runs through midnight. Watering you start yourself is never blocked,
+            and a plant that comes due during the window is watered as soon as
+            it ends rather than skipped.
+          </p>
+          {quietMsg && <p className="field-hint warning">{quietMsg}</p>}
         </div>
 
         <div className="field-row">

@@ -217,6 +217,8 @@ function App() {
           onMove={moveGantry}
           onMoveToPlant={moveToPlant}
           onWaterPlant={waterPlant}
+          quiet={overview?.quiet}
+          onQuietChange={loadDashboard}
         />
       )}
 
@@ -235,7 +237,7 @@ function App() {
 
       {activeTab === 'settings' && (
         <>
-          <SettingsPanel overview={overview} />
+          <SettingsPanel overview={overview} onQuietChange={loadDashboard} />
           <LogsPanel logs={logs} />
         </>
       )}

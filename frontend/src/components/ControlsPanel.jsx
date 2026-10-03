@@ -36,6 +36,8 @@ const parseHexColor = (hex) => {
 
 export function ControlsPanel({
   plants,
+  quiet,
+  onQuietChange,
   gantryPosition,
   overview,
   onHome,
@@ -50,6 +52,7 @@ export function ControlsPanel({
   const [color, setColor] = useState('#00ff80')
   const [pumpStatus, setPumpStatus] = useState('')
   const [lightingError, setLightingError] = useState('')
+  const [quietStatus, setQuietStatus] = useState('')
 
   // Follows the server during render rather than in an effect, so the controls
   // never paint one frame of stale values after a refresh.
@@ -108,6 +111,26 @@ export function ControlsPanel({
   const changeColor = (value) => {
     setColor(value)
     postDebounced('color', '/lights/color', parseHexColor(value))
+  }
+
+  const snooze = async (hours) => {
+    setQuietStatus('')
+    try {
+      const path = hours === 0 ? '/quiet/resume' : '/quiet/snooze'
+      const response = await fetch(`${API_BASE}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hours }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setQuietStatus(data.error || `Request failed (HTTP ${response.status})`)
+        return
+      }
+      onQuietChange?.()
+    } catch (error) {
+      setQuietStatus(`Could not reach the controller: ${error.message}`)
+    }
   }
 
   const pumpAction = async (action) => {
@@ -244,6 +267,35 @@ export function ControlsPanel({
             </p>
           )}
           {lightingError && <p className="field-hint warning">{lightingError}</p>}
+        </div>
+      </section>
+
+      <section className="panel-section">
+        <h2>Quiet</h2>
+
+        <div className="general-settings-form">
+          <div className="field-row">
+            <div className="motion-grid">
+              {[1, 2, 4].map((hours) => (
+                <button key={hours} type="button" onClick={() => snooze(hours)}>
+                  Snooze {hours}h
+                </button>
+              ))}
+            </div>
+            {quiet?.snooze_until && (
+              <div className="motion-grid">
+                <button type="button" className="primary" onClick={() => snooze(0)}>
+                  Resume watering now
+                </button>
+              </div>
+            )}
+            <p className="field-hint">
+              {quiet?.suppressed_because
+                ? `Automatic watering is held: ${quiet.suppressed_because}. A plant that comes due waits rather than being skipped.`
+                : 'Holds off automatic watering for a while. The pump and the gantry are the noisy parts, and a dose you start yourself still runs.'}
+            </p>
+            {quietStatus && <p className="field-hint warning">{quietStatus}</p>}
+          </div>
         </div>
       </section>
 
