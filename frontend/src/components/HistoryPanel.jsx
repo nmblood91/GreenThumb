@@ -12,9 +12,28 @@ const RANGES = [
 
 const PLANT_COLORS = ['#4ade80', '#60a5fa', '#f472b6', '#fbbf24']
 
+// Readings are stored and transmitted in Celsius. This converts for display
+// only -- the history keeps one unit whatever anyone happens to be viewing in.
+const toFahrenheit = (celsius) => (celsius == null ? null : celsius * 9 / 5 + 32)
+
+// Remembered per browser rather than on the Pi: it is a display preference,
+// and someone reading the chart on a phone should not change what the laptop
+// shows. localStorage can throw in a private window, so it never breaks the
+// panel if it is unavailable.
+const UNIT_KEY = 'greenthumb.tempUnit'
+
+const storedUnit = () => {
+  try {
+    return localStorage.getItem(UNIT_KEY) === 'F' ? 'F' : 'C'
+  } catch {
+    return 'C'
+  }
+}
+
 export function HistoryPanel() {
   const [hours, setHours] = useState(24)
   const [metric, setMetric] = useState('moisture')
+  const [unit, setUnit] = useState(storedUnit)
   const [history, setHistory] = useState(null)
   const [status, setStatus] = useState('Loading history...')
 
@@ -46,16 +65,30 @@ export function HistoryPanel() {
   }, [hours])
 
   const moisture = metric === 'moisture'
+  const fahrenheit = !moisture && unit === 'F'
+
+  const chooseUnit = (next) => {
+    setUnit(next)
+    try {
+      localStorage.setItem(UNIT_KEY, next)
+    } catch {
+      // A browser that refuses storage still gets the toggle, just not the
+      // memory of it.
+    }
+  }
 
   const data = useMemo(() => {
     if (!history) return [[]]
     return [
       history.timestamps,
-      ...history.plants.map((plant) =>
-        moisture ? plant.moisture_percent : plant.temperature_c,
-      ),
+      ...history.plants.map((plant) => {
+        if (moisture) return plant.moisture_percent
+        return fahrenheit
+          ? plant.temperature_c.map(toFahrenheit)
+          : plant.temperature_c
+      }),
     ]
-  }, [history, moisture])
+  }, [history, moisture, fahrenheit])
 
   const series = useMemo(() => {
     if (!history) return [{}]
@@ -68,10 +101,12 @@ export function HistoryPanel() {
         // Gaps are real: they mean the sensor could not be read.
         spanGaps: false,
         value: (self, raw) =>
-          raw == null ? '--' : `${raw.toFixed(1)}${moisture ? '%' : '°C'}`,
+          raw == null
+            ? '--'
+            : `${raw.toFixed(1)}${moisture ? '%' : fahrenheit ? '°F' : '°C'}`,
       })),
     ]
-  }, [history, moisture])
+  }, [history, moisture, fahrenheit])
 
   // Fixed for moisture so plants and time ranges stay visually comparable
   // instead of the axis rescaling to whatever happens to be on screen.
@@ -115,6 +150,24 @@ export function HistoryPanel() {
             Temperature
           </button>
         </div>
+        {!moisture && (
+          <div className="range-row">
+            <button
+              type="button"
+              className={unit === 'C' ? 'tab active' : 'tab'}
+              onClick={() => chooseUnit('C')}
+            >
+              °C
+            </button>
+            <button
+              type="button"
+              className={unit === 'F' ? 'tab active' : 'tab'}
+              onClick={() => chooseUnit('F')}
+            >
+              °F
+            </button>
+          </div>
+        )}
       </div>
 
       {status && <p className="field-hint">{status}</p>}
@@ -133,7 +186,7 @@ export function HistoryPanel() {
             series={series}
             markers={history.waterings || []}
             yRange={yRange}
-            yLabel={moisture ? 'Moisture %' : 'Temp °C'}
+            yLabel={moisture ? 'Moisture %' : fahrenheit ? 'Temp °F' : 'Temp °C'}
           />
           <p className="field-hint">
             Dashed vertical lines mark waterings
