@@ -93,12 +93,15 @@ the plant is being watered when you would have watered it.
 
 The calibrator will not write a value it does not believe, and says why:
 
-| Message | Cause |
+| Message begins | Cause |
 |---|---|
-| `no sensor answered at this address` | unplugged, wrong address, or a bus fault — run `--soak` |
-| `readings moved N counts during the run` | the sensor had not settled; let it sit and retry |
-| `wet reading X is not meaningfully above the dry point` | the wet pass ran with the sensor still in air, or a prong never reached the water |
-| `dry reading X is not meaningfully below the wet point` | the dry pass ran on a sensor that was still wet |
+| `No sensor answered at this address` | unplugged, wrong address, or a bus fault — run `--soak` |
+| `Readings drifted N counts while sampling` | the sensor had not settled; let it sit and retry |
+| `Wet reading X is only N counts above…` | the wet pass ran with the sensor still in air, or it never reached the water |
+| `Dry reading X is only N counts below…` | the dry pass ran on a sensor that was still wet |
+
+Each message names the measured value, the gap it fell short by and the gap
+expected, so the number tells you whether it was close or nowhere near.
 
 Nothing is stored for that sensor, so a refused pass leaves the previous
 calibration intact rather than half-overwriting it.

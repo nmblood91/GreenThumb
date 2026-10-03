@@ -318,7 +318,13 @@ def calibrate(
         }
 
         if not values:
-            outcome.update(written=False, reason="no sensor answered at this address")
+            outcome.update(
+                written=False,
+                reason=(
+                    "No sensor answered at this address. Check it is plugged "
+                    "into the hub and set to the address it is configured for."
+                ),
+            )
             results[address] = outcome
             continue
 
@@ -330,8 +336,9 @@ def calibrate(
             outcome.update(
                 written=False,
                 reason=(
-                    f"readings moved {spread} counts during the run, so they had "
-                    "not settled -- let the sensor sit and try again"
+                    f"Readings drifted {spread} counts while sampling, more than "
+                    f"the {UNSTABLE_SPREAD} expected of a settled sensor. Leave it where it "
+                    "is for a minute, then run this again."
                 ),
             )
             results[address] = outcome
@@ -346,8 +353,10 @@ def calibrate(
                 outcome.update(
                     written=False,
                     reason=(
-                        f"wet reading {value} is not meaningfully above the dry "
-                        f"point {other['dry']} -- are the prongs actually in water?"
+                        f"Wet reading {value} is only {value - other['dry']} counts "
+                        f"above this sensor's dry point of {other['dry']}, and at least "
+                        f"{MIN_CALIBRATION_SPAN} is expected. Is this sensor actually "
+                        "in the water?"
                     ),
                 )
                 results[address] = outcome
@@ -357,8 +366,10 @@ def calibrate(
                 outcome.update(
                     written=False,
                     reason=(
-                        f"dry reading {value} is not meaningfully below the wet "
-                        f"point {other['wet']} -- is the sensor dry and in air?"
+                        f"Dry reading {value} is only {other['wet'] - value} counts "
+                        f"below this sensor's wet point of {other['wet']}, and at least "
+                        f"{MIN_CALIBRATION_SPAN} is expected. Is this sensor dry and "
+                        "out in the air?"
                     ),
                 )
                 results[address] = outcome
