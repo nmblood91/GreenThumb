@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from contextlib import asynccontextmanager
 from datetime import datetime, time
 from typing import AsyncIterator
@@ -67,6 +69,17 @@ async def handle_value_error(request: Request, exc: ValueError) -> JSONResponse:
     return JSONResponse(status_code=400, content={"ok": False, "error": str(exc)})
 
 
+@app.exception_handler(RuntimeError)
+async def handle_runtime_error(request: Request, exc: RuntimeError) -> JSONResponse:
+    """Carry the reason to the browser instead of a plain-text 500.
+
+    system_clock raises this with timedatectl's own explanation attached, and
+    without a handler Starlette answers text/plain "Internal Server Error" --
+    so the UI parsed JSON, found nothing, and showed a bare status code.
+    """
+    return JSONResponse(status_code=409, content={"ok": False, "error": str(exc)})
+
+
 @app.exception_handler(HardwareBusyError)
 async def handle_hardware_busy(request: Request, exc: HardwareBusyError) -> JSONResponse:
     return JSONResponse(status_code=409, content={"ok": False, "error": str(exc)})
@@ -115,9 +128,10 @@ def get_system_time() -> dict[str, object]:
 def set_system_timezone(payload: dict[str, str] = Body(default_factory=dict)) -> dict[str, object]:
     """Point the host at a timezone, normally the one the browser reports.
 
-    An unknown zone raises ValueError and comes back as a 400 through the
-    app-level handler; a timedatectl that refuses raises RuntimeError, which is
-    a 500 because it means the host is not set up to allow this.
+    An unknown zone raises ValueError and comes back as a 400; a timedatectl
+    that refuses raises RuntimeError and comes back as a 409 carrying its
+    reason. Both go through app-level handlers, so both answer in the
+    {"ok": false, "error": ...} shape the rest of the API uses.
     """
     name = str(payload.get("timezone", ""))
     result = system_clock.set_timezone(name)
@@ -183,14 +197,32 @@ async def write_log(payload: dict[str, str] = Body(default_factory=dict)) -> dic
 @app.post(f"{settings.api_prefix}/water/{{plant_id}}")
 def water_plant(plant_id: str, volume_ml: int | None = None) -> dict[str, object]:
     result = automation.water_plant(plant_id, volume_ml)
-    log_event(f"Plant {plant_id} watered with {result.get('volume_ml')} mL")
+    # Branching rather than logging unconditionally: a failed gantry move comes
+    # back as {"status": "error"} with HTTP 200 and no volume_ml, which this
+    # used to record as "watered with None mL" -- a dose that never happened,
+    # written into the log the user trusts as the record of what occurred.
+    if result.get("status") == "error" or result.get("ok") is False:
+        log_event(
+            f"Plant {plant_id} NOT watered: {result.get('error', 'unknown error')}",
+            level=logging.WARNING,
+        )
+    else:
+        log_event(f"Plant {plant_id} watered with {result.get('volume_ml')} mL")
     return result
 
 
 @app.post(f"{settings.api_prefix}/pump/run")
 def run_pump() -> dict[str, object]:
     result = automation.run_pump()
-    log_event(f"Pump started manually (auto-stop in {result.get('max_run_seconds')}s)")
+    # Same shape as watering above: a pump that fails to start returns
+    # {"status": "error"} with HTTP 200, which logged "auto-stop in Nones".
+    if result.get("status") == "error":
+        log_event(
+            f"Pump did not start: {result.get('error', 'unknown error')}",
+            level=logging.WARNING,
+        )
+    else:
+        log_event(f"Pump started manually (auto-stop in {result.get('max_run_seconds')}s)")
     return result
 
 
@@ -222,7 +254,10 @@ async def set_light_color(payload: dict[str, int] = Body(default_factory=dict)) 
 
 @app.post(f"{settings.api_prefix}/lights/color-order")
 async def set_light_color_order(payload: dict[str, str] = Body(default_factory=dict)) -> dict[str, object]:
-    order = str(payload.get("color_order", "RGB"))
+    # settings.led_color_order, not a literal: every other default in the
+    # project is GRB, and a request with the key missing used to silently
+    # set RGB and swap red and green on the strip.
+    order = str(payload.get("color_order", settings.led_color_order))
     result = automation.set_light_color_order(order)
     log_event(f"LED color order set to {result['color_order']}")
     return result

@@ -90,10 +90,35 @@ class GreenThumbAutomation:
 
         self.plants = default_plants()
         self.apply_default_led_ranges()
+        self._warn_on_orphaned_plants()
         # Plant edits, dose volumes, rail positions and LED preferences are all
         # user choices that used to live only in memory, so every restart reset
         # them to the literals above. Restore whatever was saved last.
         self._restore_state()
+
+    def _warn_on_orphaned_plants(self) -> None:
+        """Say so when a plant's sensor address is not one the hub polls.
+
+        The plant list fixes each address in plants.py while the hub takes its
+        addresses from MOISTURE_SENSOR_ADDRESSES. Nothing ties the two
+        together, so setting that variable to a subset -- which SENSOR_WIRING.md
+        tells you to do for single-sensor testing -- leaves the other plants
+        reading a bus address nobody polls. They then report -1 forever and are
+        skipped by every watering cycle, silently. This does not fix the
+        divergence, it just refuses to let it be silent.
+        """
+        polled = set(getattr(self.sensor_hub, "addresses", []) or [])
+        if not polled:
+            return
+        orphaned = [plant for plant in self.plants if plant.sensor_address not in polled]
+        if orphaned:
+            logger.warning(
+                "%s will never be watered: sensor address%s %s not in "
+                "MOISTURE_SENSOR_ADDRESSES. They will report -1 and be skipped.",
+                ", ".join(plant.name for plant in orphaned),
+                "es" if len(orphaned) > 1 else "",
+                ", ".join(f"0x{plant.sensor_address:02x}" for plant in orphaned),
+            )
 
     # --- persistence ------------------------------------------------------
 
@@ -448,7 +473,12 @@ class GreenThumbAutomation:
         watcher: threading.Thread | None = None
         finished = threading.Event()
         if settings.water_sensor_enabled and volume > 0:
-            duration = volume / max(getattr(self.pump, "flow_ml_per_second", 1.67), 0.01)
+            # settings, not a literal fallback. A stale 1.67 here would time the
+            # delivery window against the uncalibrated rate while the operator
+            # believed their measured one was in use -- the silent wrong-flow-rate
+            # failure HOW_WATERING_WORKS.md calls out as the unguarded one.
+            flow = getattr(self.pump, "flow_ml_per_second", settings.pump_flow_ml_per_second)
+            duration = volume / max(flow, 0.01)
             watcher = threading.Thread(
                 target=self._watch_delivery,
                 args=(duration, verdict, finished),

@@ -121,6 +121,13 @@ export function ControlsPanel({
         setPumpStatus(data.error || `Request failed (HTTP ${response.status})`)
         return
       }
+      // A pump that fails to start answers 200 with {status: "error"}, so
+      // response.ok alone reported it as running -- and with no
+      // max_run_seconds in that body the message read "after undefineds".
+      if (data.status === 'error') {
+        setPumpStatus(`Pump did not start: ${data.error || 'unknown error'}`)
+        return
+      }
       setPumpStatus(
         action === 'run'
           ? `Pump running — stops automatically after ${data.max_run_seconds}s.`

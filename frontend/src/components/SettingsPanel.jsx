@@ -13,7 +13,6 @@ export function SettingsPanel({ overview }) {
 
   const [chip, setChip] = useState('WS2812B')
   const [colorOrder, setColorOrder] = useState('GRB')
-  const [cameraEnabled, setCameraEnabled] = useState(true)
   const [status, setStatus] = useState('')
 
   const [clock, setClock] = useState(null)
@@ -92,7 +91,6 @@ export function SettingsPanel({ overview }) {
     setSyncedOverview(overview)
     setChip(lighting?.chip ?? chip)
     setColorOrder(lighting?.color_order ?? colorOrder)
-    setCameraEnabled(overview?.camera_enabled ?? cameraEnabled)
   }
 
   // Explicit save, unlike the lighting controls: these are build-time facts
@@ -160,17 +158,6 @@ export function SettingsPanel({ overview }) {
             Choosing a strip type resets this to that chip's usual order, so set
             the type first.
           </p>
-        </div>
-
-        <div className="field-row">
-          <label className="checkbox-row">
-            <input
-              type="checkbox"
-              checked={cameraEnabled}
-              onChange={(event) => setCameraEnabled(event.target.checked)}
-            />
-            Camera enabled
-          </label>
         </div>
 
         <div className="field-row">
