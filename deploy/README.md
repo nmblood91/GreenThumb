@@ -670,7 +670,7 @@ get in exchange is a better question answered: not "is water available at the
 inlet" but "did water reach the plant" — which also catches a clog, a kink, a
 split pump tube, or a pump turning with nothing engaged.
 
-A dose that delivers nothing is logged as a warning, flagged in the History tab
+A dose that delivers nothing is logged as a warning, flagged on the history chart in the Sensors tab
 as a solid red marker, and reported in the status bar. Nothing is blocked; the
 next dose runs and re-checks, so a refilled tank clears the condition by itself.
 
@@ -742,7 +742,7 @@ answered). Unknown is deliberately distinct from a failure: "we did not look" an
 
 ## Wiring the LED Strip
 
-Supported strips, selectable as **LED strip type** in the settings page:
+Supported strips, selectable as **LED strip type** in the Settings tab:
 
 | Chip | Supply | Pixels | Pads | Notes |
 |---|---|---|---|---|

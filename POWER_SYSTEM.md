@@ -15,7 +15,10 @@ GreenThumb uses a 12V primary bus with a DC-DC converter for 5V logic. All compo
 - Pump (12V peristaltic, 100 mL/min): 0.2-0.3A
 - LED strip (60 LEDs, 12V WS2811): ~1.2A @ full white
 - SKR + Pi + sensors: ~0.5-1A
-- Total peak: ~25W, so 5A (60W) is generous headroom rather than a floor
+- Total peak: **25-29W**, the spread being how hard the LED strip is driven.
+  So 5A (60W) is generous headroom rather than a floor. Itemised in the
+  Power Budget below — the two ends of that range are the same system with
+  the strip at 14W and at 18W, not two different estimates.
 
 ## Busbar Setup
 
@@ -94,13 +97,18 @@ the Pi. A 5V strip needs its own 5V supply and its own fuse sized to it.
 | Component | Voltage | Current | Power |
 |-----------|---------|---------|-------|
 | SKR Mini E3 V2 | 12V | 0.3A | 3.6W |
-| Raspberry Pi 4 (or 3 B+) | 5V | 0.6A | 3W |
-| Pi Camera | 5V | 0.1A | 0.5W |
+| Raspberry Pi | 5V | 0.6A | 3W |
+| Pi Camera *(optional add-on)* | 5V | 0.1A | 0.5W |
 | Soil Moisture Sensors (4x) | 3.3V | 0.05A | 0.15W |
 | Addressable LEDs (60 LEDs, 12V) | 12V | ~1.2-1.5A (peak full white) | ~14-18W |
 | Peristaltic Pump (12V, 100 mL/min) | 12V | 0.2-0.3A | ~3.6W |
 | **Total Peak** | — | **~2.4A @ 12V** | **~29W** |
 | **Typical Operation** | — | **~1A @ 12V** | **~12W** |
+
+The Pi row is budgeted for a Pi 4, the development board. The Pi 3 A+ that
+is the production target draws less, so a supply sized from this table has
+margin on the shipping hardware rather than the other way round. The camera
+row is the optional add-on and is absent from a base unit — see BOM.md.
 
 **Notes:**
 - LEDs typically don't run at full brightness; realistic average is 20-30% brightness
@@ -190,7 +198,7 @@ number of LEDs you can count.
 | LEDs flicker or dim | Voltage sag under LED draw | Upgrade charger or add capacitor |
 | LEDs do nothing at all | Pi and strip grounds not tied together | Run a ground wire from a Pi GND pin to the busbar ground |
 | LEDs flicker or show junk on the first pixels | 3.3V data is marginal for WS2811 | Add a 74AHCT125 level shifter on the data line |
-| Red and green are swapped | Strip uses a different channel order | Change LED colour order in the settings page |
+| Red and green are swapped | Strip uses a different channel order | Change LED colour order in the Settings tab |
 | Charger warm/hot | Overload or internal short | Reduce load; check for shorts; consider larger PSU |
 | Fuses blow immediately | Direct short somewhere | Inspect all wiring for damage before replacing |
 

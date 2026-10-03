@@ -43,7 +43,7 @@ The business model should be framed around selling the full system, not just cod
 - motion rail and carriage drive
 - lighting strip and power system
 - sensors and wiring harness
-- Raspberry Pi and camera
+- Raspberry Pi, and the camera on units that have the add-on
 - motion control board and stepper motor
 - electrical protection and safety systems
 
@@ -89,7 +89,7 @@ Build and validate a single product variant with:
 - local app dashboard
 - automated moisture-based watering
 - scheduled lighting
-- camera monitoring
+- camera monitoring, as a paid add-on rather than part of the base unit
 - reliable pump and sensor calibration
 
 ### Phase 2: commercial-ready hardware

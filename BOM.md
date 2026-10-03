@@ -105,8 +105,13 @@ inverted.
 - Sensor and watering service logic
 
 ## UI
-- smartphone app
-- plant profile library
+- Local web app served from the Pi, reached at `http://greenthumb.local` on the
+  same network. No smartphone app and no cloud account — see
+  [PRIVACY_SECURITY_SPEC.md](PRIVACY_SECURITY_SPEC.md) for why local-only is
+  deliberate
+- A per-species plant profile library is a roadmap item, not a current part;
+  plant definitions live in `greenthumb/plants.py` and only the user-editable
+  fields persist
 
 ## Notes
 

@@ -55,9 +55,17 @@ The following rules are mandatory for all future implementation work:
 
 The camera is a sensitive component because it is inside a home environment.
 
+**Current scope.** The camera is an optional paid add-on, not part of the base
+unit, and is scoped to timelapse capture. **Live streaming is explicitly out of
+scope** — see [ROADMAP.md](ROADMAP.md). The requirements below are written to
+cover streaming anyway, so that the policy exists before the feature does
+rather than being decided under pressure afterwards. They are a standing
+constraint on any future camera work, not a description of what ships today.
+
 ### Camera requirements
 - Camera access is local-only by default.
-- Recording and livestreaming must be optional and user-controlled.
+- Recording must be optional and user-controlled. If live streaming is ever
+  added, the same applies to it, and it does not leave the LAN by default.
 - Recorded footage should be stored on local storage devices only.
 - There should be no automatic upload to third-party services.
 - The user must be able to disable the camera at any time.

@@ -5,7 +5,7 @@ GreenThumb is a Python-based software foundation for a smart indoor planter / gr
 - a Raspberry Pi host running Klipper
 - four capacitive soil sensors on an I2C hub
 - per-plant watering and lighting control
-- a Pi camera pipeline for monitoring and timelapse capture
+- an optional Pi camera add-on for monitoring and timelapse capture
 
 This repository is intentionally structured as a product-ready foundation for a future commercial offering, not just a one-off prototype.
 
@@ -62,32 +62,44 @@ This project lays down the initial application stack:
 
 ## API
 
-The app exposes a small initial API surface:
+Everything is under `/api/v1`, grouped roughly as:
 
-- `GET /health`
-- `GET /api/v1/overview`
-- `GET /api/v1/sensors`
-- `GET /api/v1/history?hours=24`
-- `POST /api/v1/water/{plant_id}` (optional `?volume_ml=` overrides the plant setting)
-- `POST /api/v1/lights/{mode}`
-- `POST /api/v1/motion/home/{axis}`
+| Group | What it covers |
+|---|---|
+| `/overview`, `/sensors`, `/history`, `/logs` | reading current state, readings and history |
+| `/plants/...` | per-plant name, light window, moisture target, dose volume, rail position, and move-to |
+| `/water/{plant_id}` | move to a plant and dose it |
+| `/gantry/...`, `/motion/...` | homing and jogging |
+| `/pump/run`, `/pump/stop` | the pump directly, for bench testing |
+| `/lights/...` | mode, brightness, colour, strip type, colour order |
+| `/sensors/calibration...` | read, measure and reset per-sensor moisture calibration |
+| `/system/time`, `/system/timezone` | the planter's clock |
+
+**The full, current list is generated from the routes themselves** at
+<http://greenthumb.local:8000/docs> — interactive, and it cannot go stale the
+way a hand-written list here did.
+
+Note the port. Nginx serves the web UI on 80 but proxies only `/api/` and
+`/health`, so `/docs` is reachable only on the API's own port.
 
 Example:
 
-`curl http://127.0.0.1:8000/api/v1/overview`
+`curl http://greenthumb.local:8000/api/v1/overview`
 
 ## Local web UI
 
-The initial control surface is a single-axis gantry system served from the Pi itself.
+Nginx serves the built React app from the Pi. **Open `http://greenthumb.local`**
+— port 80, not 8000. Port 8000 is the API, and asking it for `/` returns a JSON
+status blob rather than the page.
 
-- The gantry moves along one solid rail only.
-- Open the app at `http://<pi-host>:8000/`
-- Use the page to home the gantry and jog it in precise steps
+Four tabs:
 
-The first motion API endpoints are:
-
-- `POST /api/v1/gantry/home`
-- `POST /api/v1/gantry/move`
+| Tab | What it does |
+|---|---|
+| **Controls** | Home and jog the gantry, move to a plant, water a plant, lighting, run the pump |
+| **Plants** | Each plant's current moisture, and its name, light window, moisture target, dose volume and rail position |
+| **Sensors** | Moisture and temperature history, and per-sensor calibration |
+| **Settings** | LED strip type and colour order, the planter's clock, and the log |
 
 ## Hardware assumptions
 

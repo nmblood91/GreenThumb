@@ -85,7 +85,7 @@ will read somewhere around 30-40% and a well-watered pot perhaps 80%.
 That is deliberate. Air and a cup of water are repeatable anywhere, including on
 a production line; "soil the plant would want watering in" is not. The
 consequence is that a plant's **moisture target is a number you tune by
-observation**, not a physical quantity. The History tab exists for exactly that:
+observation**, not a physical quantity. The history chart in the Sensors tab exists for exactly that:
 watch moisture against watering events over a few days and move the target until
 the plant is being watered when you would have watered it.
 

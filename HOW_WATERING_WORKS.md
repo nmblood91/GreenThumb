@@ -21,18 +21,21 @@ directly — it measures how easily an electrical signal passes through the soil
 around it, which changes depending on how wet that soil is. Wet soil and dry
 soil give very different signals, and that difference is what we use.
 
-The probe reports a plain number, roughly between 350 and 1000:
+The probe reports a plain number — a few hundred in open air, a few hundred
+more sitting in water. Those two ends are the scale: the planter converts every
+reading onto 0–100% between them, so when the app shows "43% moisture," that's
+where the raw number falls between bone dry and underwater.
 
-| Reading | What it means |
-|---|---|
-| ~350 | Bone dry — this is what the probe reads sitting in open air |
-| ~650 | Comfortably damp |
-| ~1000 | Soaking — this is what it reads sitting in a glass of water |
+**Each probe gets its own two ends, and you measure them.** Probes differ from
+each other by enough to matter — the four on this build read about 25 counts
+apart in identical conditions — so one shared scale would bake that difference
+into every percentage. Calibration is two passes, one with the sensors in open
+air and one with them in water, and it stores a dry and wet point per sensor.
+Run it from the Sensors tab, or see SENSOR_WIRING.md for the procedure and the
+warning about not submerging the boards.
 
-Those two ends, 350 and 1000, are the scale. The planter converts every reading
-onto a 0–100% scale using them, so 350 becomes 0% and 1000 becomes 100%. When
-the app shows you "43% moisture," that's where the raw reading falls between
-bone dry and underwater.
+Until a sensor is calibrated it falls back to a rough built-in pair, which is
+good enough to show a number but not good enough to water on.
 
 One thing worth knowing: **soil never reaches 100%.** Plain water conducts better
 than even soaking wet dirt, so a freshly watered pot might read 80%. That's
@@ -93,7 +96,7 @@ planter records that your plant was watered. Everything else here fails loudly;
 that one failed silently.
 
 When a pour delivers nothing, the planter says so in the status bar, writes a
-warning to the log, and marks it in the History tab as a **solid red line**
+warning to the log, and marks it on the history chart in the Sensors tab as a **solid red line**
 instead of the usual dashed one. Nothing gets blocked — the next pour tries
 again — so refilling the tank quietly fixes it with nothing to reset.
 
@@ -131,17 +134,22 @@ up again on the next pass.
 
 ## Reading the numbers in the app
 
+Each plant in the Plants tab shows its current reading:
+
 | What you see | What it means |
 |---|---|
-| A percentage | How wet that pot is, 0% = bone dry, 100% = underwater |
-| **-1** | No reading. The probe is unplugged, broken, or not installed |
-| Sample count below 10 | Still gathering history — won't water until this hits 10 |
+| `62%` · target 45% | How wet that pot is, and the target it is being held to |
+| `32%` · below target of 45% | Drier than asked for. Shown in amber — it will be watered on the next check, cooldown permitting |
+| `no reading` | The probe is unplugged, broken, or not installed |
+| `38%` · gathering history, 3/10 | Still filling the ten-reading window — won't water until it is full |
 | "Hardware is busy" | Something else is using the arm or pump; try again shortly |
 
-**-1 never means dry.** It means "I don't know," and the planter treats it that
-way — a pot reporting -1 is skipped entirely rather than watered. If a probe
-falls out, the plant doesn't get flooded; it just stops being monitored. If you
-see -1 where you expect a number, check that the probe is plugged in.
+**"No reading" never means dry.** Underneath it the probe reports -1, which
+means "I don't know," and the planter treats it that way — a pot reporting it is
+skipped entirely rather than watered. It is deliberately not shown as 0%, which
+would look like the driest possible soil and invite watering a plant whose
+sensor has simply fallen out. If a probe falls out the plant doesn't get
+flooded; it just stops being monitored.
 
 Probes can also be plugged in while the planter is running. It notices a new one
 within a minute and starts including it — no restart needed.

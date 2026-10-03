@@ -1,19 +1,24 @@
 # GreenThumb web UI
 
-React + Vite single-page app. It is the control surface for the planter: zone
-moisture and watering, gantry jogging, lighting, history charts and settings.
+React + Vite single-page app. It is the control surface for the planter: plant
+moisture and watering, gantry jogging, lighting, history charts, sensor
+calibration and settings.
 It talks to the FastAPI backend under `/api/v1`.
 
 ## Layout
 
 - `src/App.jsx` — tab shell and shared state
-- `src/components/TopBar.jsx` — header and connection status
+- `src/components/TopBar.jsx` — header
 - `src/components/TabBar.jsx` — tab switching
-- `src/components/GeneralPanel.jsx` — status overview
-- `src/components/PlantsPanel.jsx` — per-zone moisture, targets and manual watering
-- `src/components/GantryPanel.jsx` — homing and jogging
-- `src/components/HistoryPanel.jsx` + `Chart.jsx` — history charts
-- `src/components/LogsPanel.jsx` — recent log lines
+
+Four tabs, one component each unless noted:
+
+| Tab | Components |
+|---|---|
+| Controls | `ControlsPanel.jsx` — gantry homing and jogging, move-to-plant, water-a-plant, lighting, pump |
+| Plants | `PlantsPanel.jsx` — per-plant current moisture, plus an expandable settings form for name, light window, target, dose volume and rail position |
+| Sensors | `HistoryPanel.jsx` + `Chart.jsx` for the chart, `CalibrationPanel.jsx` for per-sensor calibration |
+| Settings | `SettingsPanel.jsx` — LED strip type and colour order, planter clock; `LogsPanel.jsx` renders below it |
 
 ## Local development
 
