@@ -127,7 +127,7 @@ export function CalibrationPanel() {
           </p>
           <p className="field-hint">
             Each run samples every sensor for {SAMPLE_SECONDS} seconds and takes
-            the median. Watering is blocked while it runs. Each test must be done on its own.
+            the median. Watering is blocked while it runs. Dry and Wet tests must be done on their own.
           </p>
         </div>
 
