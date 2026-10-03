@@ -177,9 +177,9 @@ export function CalibrationPanel() {
             <h3>Last run</h3>
             {results.sensors.map((sensor) => (
               <p className="field-hint" key={sensor.address}>
-                <strong>{sensor.address}</strong>{' '}
+                <strong>{sensor.label || sensor.address}</strong>{' '}
                 {sensor.written
-                  ? `stored ${sensor.value} (spread ${sensor.spread} over ${sensor.samples} samples)`
+                  ? `stored ${sensor.value} (readings spread ${sensor.spread} points over ${sensor.samples} samples)`
                   : `not stored — ${sensor.reason}`}
               </p>
             ))}
@@ -199,7 +199,7 @@ export function CalibrationPanel() {
                 : `half calibrated, ${sensor.calibrated_dry ? 'wet' : 'dry'} still default`
             return (
               <p className="field-hint" key={sensor.address}>
-                <strong>{sensor.address}</strong> dry {sensor.dry} · wet {sensor.wet} ·
+                <strong>{sensor.label || sensor.address}</strong> dry {sensor.dry} · wet {sensor.wet} ·
                 span {sensor.wet - sensor.dry} — {source}
               </p>
             )
