@@ -37,7 +37,15 @@ const parseHexColor = (hex) => {
   return { r: (numeric >> 16) & 255, g: (numeric >> 8) & 255, b: numeric & 255 }
 }
 
-export function ControlsPanel({ plants, gantryPosition, overview, onHome, onMove, onMoveToPlant }) {
+export function ControlsPanel({
+  plants,
+  gantryPosition,
+  overview,
+  onHome,
+  onMove,
+  onMoveToPlant,
+  onWaterPlant,
+}) {
   const lighting = overview?.lighting
 
   const [ledMode, setLedMode] = useState('schedule')
@@ -155,6 +163,21 @@ export function ControlsPanel({ plants, gantryPosition, overview, onHome, onMove
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="subsection">
+          <h3>Water Plant</h3>
+          <div className="plant-actions-grid">
+            {plants.map((plant) => (
+              <button key={plant.plant_id} onClick={() => onWaterPlant(plant.plant_id)}>
+                {plant.name}
+              </button>
+            ))}
+          </div>
+          <p className="field-hint">
+            Moves to the plant and doses its saved volume. Takes about a minute;
+            watch the status bar at the top.
+          </p>
         </div>
       </section>
 
