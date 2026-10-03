@@ -141,6 +141,7 @@ export function CalibrationPanel() {
           <div className="motion-grid two-up">
             <button
               type="button"
+              className={busy === 'dry' ? 'working' : undefined}
               disabled={Boolean(busy)}
               onClick={() => runCalibration('dry')}
             >
@@ -148,6 +149,7 @@ export function CalibrationPanel() {
             </button>
             <button
               type="button"
+              className={busy === 'wet' ? 'working' : undefined}
               disabled={Boolean(busy)}
               onClick={() => runCalibration('wet')}
             >

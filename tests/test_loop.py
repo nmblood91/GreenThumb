@@ -82,7 +82,7 @@ def build(raw):
 
 
 # 1. window must fill before anything waters
-auto, pump = build(350)
+auto, pump = build(settings.moisture_raw_dry)
 for _ in range(9):
     auto.tick()
 assert pump.calls == [], f"watered before window filled: {pump.calls}"
@@ -113,7 +113,7 @@ assert auto.smoothed_percent(0x36) == 100.0
 print("ok: saturated soil is left alone")
 
 # 5. averaging reflects the window, not the last read
-auto, pump = build(350)
+auto, pump = build(settings.moisture_raw_dry)
 for _ in range(5):
     auto.tick()
 auto.sensor_hub.raw = settings.moisture_raw_wet
@@ -124,7 +124,7 @@ assert 45 < avg < 55, f"expected mid-range average, got {avg}"
 print(f"ok: rolling average smooths a step change -> {avg}%")
 
 # 6. a manual command is rejected while the loop holds the hardware
-auto, pump = build(350)
+auto, pump = build(settings.moisture_raw_dry)
 auto._hardware_lock.acquire()
 try:
     auto.water_zone("zone_1")
@@ -151,14 +151,14 @@ class Exploding(FakeHub):
     def read_one(self, address):
         raise OSError("bus fell over")
 
-auto2 = GreenThumbAutomation(Exploding(350), FakeKlipper(), FakePump(), FakeLeds(), history=temp_store(), state_path=temp_state())
+auto2 = GreenThumbAutomation(Exploding(settings.moisture_raw_dry), FakeKlipper(), FakePump(), FakeLeds(), history=temp_store(), state_path=temp_state())
 auto2.tick()
 assert not auto2._hardware_lock.locked(), "lock leaked after a failing tick"
 print("ok: failing tick is contained and releases the lock")
 
 
 # --- manual watering goes to the plant first ---
-auto, pump = build(350)
+auto, pump = build(settings.moisture_raw_dry)
 zone1 = auto.get_zone("zone_1")
 result = auto.water_zone("zone_1")
 assert auto.klipper.moves == [zone1.position_mm], auto.klipper.moves
@@ -183,7 +183,7 @@ class RefusingKlipper(FakeKlipper):
         return {"ok": False, "error": "must home first"}
 
 
-auto2 = GreenThumbAutomation(FakeHub(350), RefusingKlipper(), FakePump(), FakeLeds(), history=temp_store(), state_path=temp_state())
+auto2 = GreenThumbAutomation(FakeHub(settings.moisture_raw_dry), RefusingKlipper(), FakePump(), FakeLeds(), history=temp_store(), state_path=temp_state())
 result = auto2.water_zone("zone_1")
 assert result["status"] == "error", result
 assert auto2.pump.calls == [], "pumped despite a failed move"
@@ -250,7 +250,7 @@ shared = temp_state()
 
 def fresh(state_file):
     return GreenThumbAutomation(
-        FakeHub(350), FakeKlipper(), FakePump(), FakeLeds(),
+        FakeHub(settings.moisture_raw_dry), FakeKlipper(), FakePump(), FakeLeds(),
         history=temp_store(), state_path=state_file,
     )
 

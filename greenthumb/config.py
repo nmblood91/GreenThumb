@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     # Placeholders, so the exact numbers carry no measurement -- they only have
     # to be the right order of magnitude and far enough apart to divide by.
     # Wet is the reading in plain water, which soil never quite reaches.
-    moisture_raw_dry: int = 350
+    moisture_raw_dry: int = 320
     moisture_raw_wet: int = 1020
 
     # Off by default. The pump is real, but an unattended pump is the one

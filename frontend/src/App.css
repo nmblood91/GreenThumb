@@ -300,7 +300,9 @@ button {
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
-button:hover {
+/* Guarded, or a disabled control still lifts and brightens under the cursor
+   and reads as clickable. */
+button:not(:disabled):hover {
   background: #3c935d;
   transform: translateY(-1px);
 }
@@ -309,8 +311,26 @@ button.primary {
   background: #1d3d2d;
 }
 
-button.primary:hover {
+button.primary:not(:disabled):hover {
   background: #274d3f;
+}
+
+button:disabled {
+  background: #26332c;
+  color: rgba(255, 255, 255, 0.4);
+  border-color: rgba(255, 255, 255, 0.04);
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* The control that is actually running stays legible. It is disabled to stop a
+   second run, not to say nothing is happening, and it is the one carrying the
+   countdown -- greying that out to 40% is the opposite of what it is for. */
+button:disabled.working {
+  background: #2e7d4b;
+  color: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.12);
+  cursor: progress;
 }
 
 .subsection {

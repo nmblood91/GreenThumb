@@ -51,7 +51,7 @@ class SoilSensorHub:
     def __init__(
         self,
         addresses: list[int] | None = None,
-        raw_dry: int = 350,
+        raw_dry: int = 320,
         raw_wet: int = 1020,
         calibration: dict[int, dict[str, int]] | None = None,
     ) -> None:
