@@ -16,6 +16,8 @@ export function CalibrationPanel() {
   const [busy, setBusy] = useState('')
   const [results, setResults] = useState(null)
   const [message, setMessage] = useState('')
+  const [deadline, setDeadline] = useState(null)
+  const [remaining, setRemaining] = useState(0)
 
   const load = useCallback(async () => {
     try {
@@ -42,10 +44,26 @@ export function CalibrationPanel() {
     }
   }, [load])
 
+  // Counts down against a wall-clock deadline rather than decrementing a
+  // counter: a background tab throttles timers to once a minute or so, and a
+  // plain decrement would come back reading 19s after a 20s run.
+  useEffect(() => {
+    if (!deadline) return undefined
+    const id = setInterval(() => {
+      setRemaining(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)))
+    }, 250)
+    return () => clearInterval(id)
+  }, [deadline])
+
   const runCalibration = async (endpoint) => {
     setBusy(endpoint)
     setResults(null)
     setMessage('')
+    // Seeded here rather than in the effect: the first value has to be on
+    // screen before the first tick, and setting state in an effect body is
+    // what the hooks lint objects to.
+    setRemaining(SAMPLE_SECONDS)
+    setDeadline(Date.now() + SAMPLE_SECONDS * 1000)
     try {
       // Blocks for the whole sampling window, the way a gantry move blocks for
       // its travel. The button stays disabled until it returns.
@@ -71,6 +89,7 @@ export function CalibrationPanel() {
       setMessage(`Calibration failed: ${error.message}`)
     } finally {
       setBusy('')
+      setDeadline(null)
     }
   }
 
@@ -90,6 +109,14 @@ export function CalibrationPanel() {
 
   const sensors = calibration?.sensors ?? []
 
+  // The request outlives the sampling window by a little -- acquiring the
+  // hardware lock, the final pass, serialising the reply -- so the countdown
+  // hands over to "Finishing" instead of sitting on a stuck 0s.
+  const buttonLabel = (endpoint, idleLabel) => {
+    if (busy !== endpoint) return idleLabel
+    return remaining > 0 ? `Sampling… ${remaining}s` : 'Finishing…'
+  }
+
   return (
     <section className="panel-section">
       <h2>Moisture calibration</h2>
@@ -107,14 +134,14 @@ export function CalibrationPanel() {
               disabled={Boolean(busy)}
               onClick={() => runCalibration('dry')}
             >
-              {busy === 'dry' ? `Sampling… ${SAMPLE_SECONDS}s` : 'Calibrate dry (air)'}
+              {buttonLabel('dry', 'Calibrate dry (air)')}
             </button>
             <button
               type="button"
               disabled={Boolean(busy)}
               onClick={() => runCalibration('wet')}
             >
-              {busy === 'wet' ? `Sampling… ${SAMPLE_SECONDS}s` : 'Calibrate wet (water)'}
+              {buttonLabel('wet', 'Calibrate wet (water)')}
             </button>
           </div>
           <p className="field-hint">
