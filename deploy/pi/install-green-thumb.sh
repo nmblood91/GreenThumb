@@ -61,7 +61,7 @@ if [ ! -d /opt/greenthumb ]; then
   # Clone as pi rather than root. A later chown -R repairs the ownership either
   # way, but cloning as the owning user is what deploy/README.md documents and
   # leaves nothing to repair.
-  sudo -u pi git clone --depth 1 https://github.com/nmblood91/GreenThumb.git /opt/greenthumb
+  sudo -u pi git clone --depth 1 https://github.com/nmblood91/herman.git /opt/greenthumb
 fi
 
 # Create printer_data and log directories

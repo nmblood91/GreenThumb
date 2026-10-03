@@ -66,8 +66,13 @@ For a clean installation with the latest OS, start here:
    sudo apt install -y git
    sudo mkdir -p /opt/greenthumb
    sudo chown pi:pi /opt/greenthumb
-   git clone --depth 1 https://github.com/nmblood91/GreenThumb.git /opt/greenthumb
+   git clone --depth 1 https://github.com/nmblood91/herman.git /opt/greenthumb
    ```
+
+   The repo is `herman` but it is cloned into `/opt/greenthumb`, and that is
+   deliberate: Herman is the product, GreenThumb is the software, and the
+   install path, the Python package and the systemd units all use the software
+   name. Only things an owner reads say Herman.
 
    `sudo` creates the directory because `/opt` is root-owned, but the clone
    itself runs as `pi` so the checkout and `.git` belong to `pi` from the start.
@@ -114,6 +119,21 @@ For a clean installation with the latest OS, start here:
    - Open `http://herman.local` in your browser
    - Or use the Pi's IP: `http://<pi-ip>`
 
+
+## Repointing an existing checkout
+
+The repo was renamed from `GreenThumb` to `herman`. GitHub redirects the old
+URL, so a Pi cloned before the rename keeps working — but the redirect stops if
+anything is ever created at the old path, and a remote pointing at a name that
+no longer exists is a trap for whoever debugs it next. One command:
+
+```bash
+git -C /opt/greenthumb remote set-url origin https://github.com/nmblood91/herman.git
+git -C /opt/greenthumb remote -v
+```
+
+The checkout stays at `/opt/greenthumb`. The product is Herman; the software,
+the package and the paths are GreenThumb.
 
 ## Renaming an existing Pi
 
