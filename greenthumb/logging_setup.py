@@ -19,7 +19,14 @@ def setup_logging() -> logging.Logger:
 
     file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
     file_handler.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+    # datefmt drops the ",mmm" logging appends to asctime by default. Nothing
+    # here happens on a millisecond scale -- the control loop ticks once a
+    # minute and a dose runs for tens of seconds -- so the digits were noise in
+    # every line of the Logs tab.
+    formatter = logging.Formatter(
+        "%(asctime)s | %(levelname)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
 
