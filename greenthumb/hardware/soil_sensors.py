@@ -52,7 +52,7 @@ class SoilSensorHub:
         self,
         addresses: list[int] | None = None,
         raw_dry: int = 350,
-        raw_wet: int = 1016,
+        raw_wet: int = 1020,
         calibration: dict[int, dict[str, int]] | None = None,
     ) -> None:
         self.addresses = addresses or [0x36, 0x37, 0x38, 0x39]

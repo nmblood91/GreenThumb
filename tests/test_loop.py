@@ -105,7 +105,7 @@ assert len(pump.calls) == 2, f"expected watering after cooldown, got {pump.calls
 print("ok: waters again once cooldown expires")
 
 # 4. wet soil never waters
-auto, pump = build(1016)
+auto, pump = build(settings.moisture_raw_wet)
 for _ in range(15):
     auto.tick()
 assert pump.calls == [], f"watered wet soil: {pump.calls}"
@@ -116,7 +116,7 @@ print("ok: saturated soil is left alone")
 auto, pump = build(350)
 for _ in range(5):
     auto.tick()
-auto.sensor_hub.raw = 1016
+auto.sensor_hub.raw = settings.moisture_raw_wet
 for _ in range(5):
     auto.tick()
 avg = auto.smoothed_percent(0x36)

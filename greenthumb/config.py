@@ -38,11 +38,17 @@ class Settings(BaseSettings):
     # the loop acts on a 10 minute trend rather than a single noisy reading.
     moisture_window_size: int = 10
 
-    # Shared calibration for all probes. Raw capacitance, not per sensor: the
-    # spread between probes is far smaller than the margin a watering decision
-    # needs. Wet is the reading in plain water, which soil never quite reaches.
+    # Fallback endpoints for sensors that have not been calibrated. Real values
+    # are measured per sensor by `--calibrate dry` / `--calibrate wet` and kept
+    # in data/state.json, which overrides these; probes do read measurably
+    # differently from one another, so a shared pair puts that spread straight
+    # into the reported percentage.
+    #
+    # Placeholders, so the exact numbers carry no measurement -- they only have
+    # to be the right order of magnitude and far enough apart to divide by.
+    # Wet is the reading in plain water, which soil never quite reaches.
     moisture_raw_dry: int = 350
-    moisture_raw_wet: int = 1016
+    moisture_raw_wet: int = 1020
 
     # Off by default. The pump is real, but an unattended pump is the one
     # failure here that can drown a plant or empty the reservoir onto a dose
