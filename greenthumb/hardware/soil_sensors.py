@@ -10,6 +10,7 @@ import smbus2
 
 from greenthumb import state
 from greenthumb.models import SensorSample
+from greenthumb.zones import label_for
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +242,7 @@ def _soak(hub: SoilSensorHub, seconds: int, interval: float) -> int:
     print(f"Soaking the I2C bus for {seconds}s across {len(hub.addresses)} addresses...")
     stats = _collect(hub, seconds, interval)
 
-    print(f"\n{'addr':<6} {'reads':>7} {'errors':>7} {'rate':>7}  {'raw min/mean/max':<22} verdict")
+    print(f"\n{'sensor':<20} {'reads':>7} {'errors':>7} {'rate':>7}  {'raw min/mean/max':<22} verdict")
     worst = 0.0
     for address, entry in stats.items():
         reads, errors = entry["reads"], entry["errors"]
@@ -260,7 +261,7 @@ def _soak(hub: SoilSensorHub, seconds: int, interval: float) -> int:
             else:
                 verdict = "unreliable - check routing, hub pull-ups, cable length"
 
-        print(f"0x{address:02x}   {reads:>7} {errors:>7} {rate:>6.2f}%  {spread:<22} {verdict}")
+        print(f"{label_for(address):<20} {reads:>7} {errors:>7} {rate:>6.2f}%  {spread:<22} {verdict}")
 
     if worst == 0:
         print("\nNo errors. The bus is healthy at this cable length.")
@@ -455,7 +456,7 @@ def calibrate(
 
 def _print_calibration(hub: SoilSensorHub, state_path=None) -> int:
     stored = state.load_calibration(state_path)
-    print(f"{'addr':<6} {'dry':>6} {'wet':>6} {'span':>6}  source")
+    print(f"{'sensor':<20} {'dry':>6} {'wet':>6} {'span':>6}  source")
     for address in hub.addresses:
         entry = stored.get(address, {})
         dry, wet = hub.endpoints_for(address)
@@ -466,7 +467,7 @@ def _print_calibration(hub: SoilSensorHub, state_path=None) -> int:
         else:
             missing = "wet" if "dry" in entry else "dry"
             source = f"half calibrated, {missing} still default"
-        print(f"0x{address:02x}  {dry:>6} {wet:>6} {wet - dry:>6}  {source}")
+        print(f"{label_for(address, state_path=state_path):<20} {dry:>6} {wet:>6} {wet - dry:>6}  {source}")
     if not stored:
         print(
             "\nNothing calibrated yet. Every sensor is using "
@@ -550,19 +551,19 @@ if __name__ == "__main__":
             )
         results = calibrate(hub, args.calibrate, args.seconds, args.interval)
 
-        print(f"\n{'addr':<6} {'value':>6} {'spread':>7} {'samples':>8}  result")
+        print(f"\n{'sensor':<20} {'value':>6} {'spread':>7} {'samples':>8}  result")
         failures = 0
         for address, outcome in results.items():
             if outcome.get("written"):
                 print(
-                    f"0x{address:02x}  {outcome['value']:>6} {outcome['spread']:>7} "
+                    f"{label_for(address):<20} {outcome['value']:>6} {outcome['spread']:>7} "
                     f"{outcome['samples']:>8}  stored as {args.calibrate}"
                 )
             else:
                 failures += 1
                 value = outcome.get("value", "-")
                 shown = f"{value:>6}" if value != "-" else f"{'-':>6}"
-                print(f"0x{address:02x}  {shown} {'-':>7} {'-':>8}  NOT STORED: {outcome['reason']}")
+                print(f"{label_for(address):<20} {shown} {'-':>7} {'-':>8}  NOT STORED: {outcome['reason']}")
 
         if failures:
             print(f"\n{failures} sensor(s) not stored. Fix the cause and re-run.")
@@ -572,6 +573,6 @@ if __name__ == "__main__":
 
     for sample in hub.read_all():
         print(
-            f"0x{sample.sensor_address:02x}  raw={sample.moisture_raw:.0f}  "
+            f"{label_for(sample.sensor_address):<20} raw={sample.moisture_raw:.0f}  "
             f"moisture={sample.moisture_percent}%  temp={sample.temperature_c}C"
         )

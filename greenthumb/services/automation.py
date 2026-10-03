@@ -15,6 +15,7 @@ from greenthumb.hardware.pump import PumpController
 from greenthumb.hardware.soil_sensors import SoilSensorHub, calibrate, unavailable_sample
 from greenthumb.history import DEFAULT_DB_PATH, HistoryStore
 from greenthumb.models import SensorSample, ZoneSpec, ZoneStatus
+from greenthumb.zones import default_zones, label_for, names_by_address
 from greenthumb import state
 
 logger = logging.getLogger(__name__)
@@ -87,12 +88,7 @@ class GreenThumbAutomation:
         self._pump_timer: threading.Timer | None = None
         self._pump_lock_held = False
 
-        self.zones = [
-            ZoneSpec(name="Zone 1", zone_id="zone_1", sensor_address=0x36, moisture_target=45, watering_volume_ml=100, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=150),
-            ZoneSpec(name="Zone 2", zone_id="zone_2", sensor_address=0x37, moisture_target=42, watering_volume_ml=100, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=400),
-            ZoneSpec(name="Zone 3", zone_id="zone_3", sensor_address=0x38, moisture_target=48, watering_volume_ml=100, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=650),
-            ZoneSpec(name="Zone 4", zone_id="zone_4", sensor_address=0x39, moisture_target=44, watering_volume_ml=100, light_start_time=time(8, 0), light_stop_time=time(20, 0), position_mm=900),
-        ]
+        self.zones = default_zones()
         self.apply_default_led_ranges()
         # Zone edits, dose volumes, rail positions and LED preferences are all
         # user choices that used to live only in memory, so every restart reset
@@ -586,6 +582,9 @@ class GreenThumbAutomation:
             results = calibrate(self.sensor_hub, endpoint, bounded, state_path=self._state_path)
 
         stored = sum(1 for item in results.values() if item.get("written"))
+        # Carries the zone name as well as the address: the owner of one of
+        # these should be told "Zone 2", not asked to recognise 0x37.
+        names = self.zone_names()
         return {
             "status": "ok",
             "endpoint": endpoint,
@@ -593,15 +592,23 @@ class GreenThumbAutomation:
             "stored": stored,
             "total": len(results),
             "sensors": [
-                {"address": f"0x{address:02x}", **{
-                    key: value for key, value in outcome.items() if key != "address"
-                }}
+                {
+                    "address": f"0x{address:02x}",
+                    "zone": names.get(address),
+                    "label": label_for(address, names),
+                    **{key: value for key, value in outcome.items() if key != "address"},
+                }
                 for address, outcome in sorted(results.items())
             ],
         }
 
+    def zone_names(self) -> dict[int, str]:
+        """Address to the name currently shown for that zone."""
+        return {zone.sensor_address: zone.name for zone in self.zones}
+
     def moisture_calibration(self) -> dict[str, object]:
         stored = state.load_calibration(self._state_path)
+        names = self.zone_names()
         return {
             "status": "ok",
             "default_dry": settings.moisture_raw_dry,
@@ -609,6 +616,8 @@ class GreenThumbAutomation:
             "sensors": [
                 {
                     "address": f"0x{address:02x}",
+                    "zone": names.get(address),
+                    "label": label_for(address, names),
                     "dry": self.sensor_hub.endpoints_for(address)[0],
                     "wet": self.sensor_hub.endpoints_for(address)[1],
                     "calibrated_dry": "dry" in stored.get(address, {}),
