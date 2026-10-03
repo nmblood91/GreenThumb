@@ -8,7 +8,7 @@ const SAMPLE_SECONDS = 20
 
 const INSTRUCTIONS = {
   dry: 'All sensors should be out of any soil, clean and dry, sitting in open air.',
-  wet: 'The sensors should be in water — only up to the marked line.',
+  wet: 'The sensors should be in water — only up to the heat shrink.',
 }
 
 export function CalibrationPanel() {
@@ -54,20 +54,10 @@ export function CalibrationPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ seconds: SAMPLE_SECONDS }),
       })
-      const data = await response.json().catch(() => ({}))
+      const data = await response.json()
       if (!response.ok) {
-        // 409 when a watering cycle holds the hardware, 400 for a bad
-        // endpoint. Always include the status: a 404 is FastAPI's
-        // {"detail": "Not Found"} with no error field, which otherwise shows
-        // as a bare "failed" and hides that the API is running older code
-        // than the page.
-        const detail = data.error || data.detail
-        setMessage(
-          detail
-            ? `Calibration failed (${response.status}): ${detail}`
-            : `Calibration failed (HTTP ${response.status}). If this is a 404, ` +
-              'the API is older than this page — restart greenthumb-api.',
-        )
+        // 409 when a watering cycle holds the hardware, 400 for a bad endpoint.
+        setMessage(data.error || 'Calibration failed')
         return
       }
       setResults(data)
@@ -106,8 +96,8 @@ export function CalibrationPanel() {
 
       <div className="general-settings-form">
         <p className="field-hint">
-          Measures each sensor's own dry and wet endpoints. Every sensor reads sligth
-          differently from each other in identical conditions
+          Measures each sensor's own dry and wet data reads. Every sensor reads sligthly
+          differently from each other in identical conditions.
         </p>
 
         <div className="field-row">
@@ -133,13 +123,11 @@ export function CalibrationPanel() {
             <strong>Wet:</strong> {INSTRUCTIONS.wet}
           </p>
           <p className="field-hint warning">
-            These boards are not waterproof. Put only the prongs in the water, up
-            to the marked line — submerging the connector end destroys the sensor.
+            These boards are not waterproof. Be sure to have heat shrinked the sensor from the white and above, covering all electrical components and connections.
           </p>
           <p className="field-hint">
             Each run samples every sensor for {SAMPLE_SECONDS} seconds and takes
-            the median. Watering is blocked while it runs. The two passes are
-            independent, so either can be redone on its own.
+            the median. Watering is blocked while it runs. Each test must be done on its own.
           </p>
         </div>
 
@@ -179,8 +167,8 @@ export function CalibrationPanel() {
           })}
           <p className="field-hint">
             Air and water measure the sensor's full range, not the soil's. Dry
-            soil reads around 30-40% on that scale, so tune each zone's target by
-            watching the History tab rather than assuming a number is physical.
+            soil reads around 30-40% on that scale, but you should fine tune each zone's target by
+            watching the History tab to see how a sensor is reading.
           </p>
         </div>
 
@@ -189,8 +177,8 @@ export function CalibrationPanel() {
             Reset calibration
           </button>
           <p className="field-hint">
-            Clears stored values and returns every sensor to MOISTURE_RAW_DRY and
-            MOISTURE_RAW_WET from <code>.env</code>.
+            Clears calibrated values and returns every sensor to default values for
+            MOISTURE_RAW_DRY and MOISTURE_RAW_WET.
           </p>
         </div>
       </div>
