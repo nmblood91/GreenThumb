@@ -110,3 +110,41 @@ assert 0.0 <= hub.raw_to_percent(500, 0x36) <= 100.0
 print("ok: a zero or inverted span stays within 0-100 instead of exploding")
 
 print("\nall state and calibration checks passed")
+
+
+# --- the averaged value must honour calibration too ---
+# Regression: smoothed_percent had the address but did not pass it, so
+# per-sensor calibration reached individual reads and not the average that
+# decides watering.
+import tempfile as _tf
+from pathlib import Path as _P
+
+sys.modules.setdefault("spidev", types.ModuleType("spidev"))
+from greenthumb.services.automation import GreenThumbAutomation
+from greenthumb.history import HistoryStore
+
+
+class _Hub:
+    addresses = [0x36]
+    raw_dry, raw_wet = 320, 1020
+    calibration = {0x36: {"dry": 500, "wet": 700}}
+    endpoints_for = SoilSensorHub.endpoints_for
+    raw_to_percent = SoilSensorHub.raw_to_percent
+    def read_one(self, a): return None
+
+
+class _Nul:
+    mode = "off"; color = (0, 0, 0); brightness = 0
+    def __getattr__(self, n): return lambda *a, **k: {}
+
+
+auto = GreenThumbAutomation(
+    _Hub(), _Nul(), _Nul(), _Nul(),
+    history=HistoryStore(_P(_tf.mkdtemp()) / "t.db"),
+    state_path=_P(_tf.mkdtemp()) / "s.json",
+)
+auto._history[0x36].extend([600.0] * 5)
+got = auto.smoothed_percent(0x36)
+# 600 sits midway between this sensor's calibrated 500 and 700.
+assert got == 50.0, f"expected the calibrated 50.0, got {got} (global span would give ~40)"
+print("ok: the averaged moisture uses the sensor's own calibration, not the global span")

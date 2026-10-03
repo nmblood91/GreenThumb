@@ -329,7 +329,11 @@ class GreenThumbAutomation:
         window = self._history.get(address)
         if not window:
             return -1.0
-        return self.sensor_hub.raw_to_percent(sum(window) / len(window))
+        # Pass the address: without it raw_to_percent falls back to the global
+        # endpoints, so per-sensor calibration applied to individual reads was
+        # being dropped from the averaged value -- the one that actually decides
+        # watering and feeds the overview.
+        return self.sensor_hub.raw_to_percent(sum(window) / len(window), address)
 
     def _run_watering_cycle(self) -> None:
         for plant in self.plants:

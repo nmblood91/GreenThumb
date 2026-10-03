@@ -26,7 +26,7 @@ DOSE_SECONDS = 0.2
 
 class Hub:
     addresses = [0x36, 0x37, 0x38, 0x39]
-    def raw_to_percent(self, raw): return 0.0
+    def raw_to_percent(self, raw, address=None): return 0.0
     def read_one(self, a): return SensorSample(a, 0.0, 350.0, 22.0)
 
 class Pump:

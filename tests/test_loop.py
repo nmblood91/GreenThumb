@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 sys.modules["smbus2"] = types.ModuleType("smbus2")  # no I2C on the laptop
 
 from greenthumb.config import settings
+from greenthumb.hardware.soil_sensors import SoilSensorHub
 from greenthumb.models import SensorSample
 from greenthumb.services.automation import GreenThumbAutomation, HardwareBusyError
 
@@ -11,13 +12,20 @@ settings.auto_watering_enabled = True
 
 
 class FakeHub:
+    # Borrows the real conversion rather than copying it. The copy that used to
+    # live here had already drifted: it took no address, so it knew nothing
+    # about per-sensor calibration, and it divided by a raw span with no
+    # divide-by-zero guard -- meaning these tests were exercising the test's
+    # arithmetic instead of the shipped function.
+    raw_dry = settings.moisture_raw_dry
+    raw_wet = settings.moisture_raw_wet
+    calibration = {}
+    endpoints_for = SoilSensorHub.endpoints_for
+    raw_to_percent = SoilSensorHub.raw_to_percent
+
     def __init__(self, raw):
         self.addresses = [0x36, 0x37, 0x38, 0x39]
         self.raw = raw
-
-    def raw_to_percent(self, raw):
-        span = settings.moisture_raw_wet - settings.moisture_raw_dry
-        return round(max(0.0, min((raw - settings.moisture_raw_dry) / span * 100, 100.0)), 1)
 
     def read_one(self, address):
         if address != 0x36:
