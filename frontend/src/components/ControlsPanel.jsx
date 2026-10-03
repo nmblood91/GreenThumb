@@ -1,0 +1,249 @@
+import { useEffect, useRef, useState } from 'react'
+
+// Relative so the page works from any device. An absolute localhost URL resolves
+// to whatever machine the browser is on, not the Pi.
+const API_BASE = '/api/v1'
+
+// A slider fires a change per pixel of drag. Lighting applies on the spot here
+// rather than behind a save button, so the writes are coalesced instead.
+const APPLY_DEBOUNCE_MS = 250
+
+const UI_MODE_BY_BACKEND = {
+  schedule: 'schedule',
+  manual: 'on',
+  rainbow: 'rainbow',
+  off: 'off',
+}
+
+const BACKEND_MODE_BY_UI = {
+  schedule: 'schedule',
+  on: 'manual',
+  rainbow: 'rainbow',
+  off: 'off',
+}
+
+const toHexColor = (value) => {
+  if (Array.isArray(value)) {
+    const [r, g, b] = value
+    return `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, '0')).join('')}`
+  }
+  return value || '#00ff80'
+}
+
+const parseHexColor = (hex) => {
+  const clean = hex.replace('#', '')
+  const full = clean.length === 3 ? clean.split('').map((char) => char + char).join('') : clean
+  const numeric = Number.parseInt(full, 16)
+  return { r: (numeric >> 16) & 255, g: (numeric >> 8) & 255, b: numeric & 255 }
+}
+
+export function ControlsPanel({ plants, gantryPosition, overview, onHome, onMove, onMoveToPlant }) {
+  const lighting = overview?.lighting
+
+  const [ledMode, setLedMode] = useState('schedule')
+  const [brightness, setBrightness] = useState(75)
+  const [color, setColor] = useState('#00ff80')
+  const [pumpStatus, setPumpStatus] = useState('')
+  const [lightingError, setLightingError] = useState('')
+
+  // Follows the server during render rather than in an effect, so the controls
+  // never paint one frame of stale values after a refresh.
+  const [syncedOverview, setSyncedOverview] = useState(null)
+  if (overview !== syncedOverview) {
+    setSyncedOverview(overview)
+    setLedMode(UI_MODE_BY_BACKEND[lighting?.mode] ?? ledMode)
+    setBrightness(lighting?.brightness ?? brightness)
+    setColor(toHexColor(lighting?.color || color))
+  }
+
+  const timers = useRef({})
+  useEffect(() => {
+    const pending = timers.current
+    return () => Object.values(pending).forEach(clearTimeout)
+  }, [])
+
+  const post = async (path, body) => {
+    try {
+      const response = await fetch(`${API_BASE}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        setLightingError(data.error || `Request failed (HTTP ${response.status})`)
+        return
+      }
+      setLightingError('')
+    } catch (error) {
+      setLightingError(`Could not reach the controller: ${error.message}`)
+    }
+  }
+
+  // Keyed so a brightness drag and a colour drag do not cancel each other.
+  const postDebounced = (key, path, body) => {
+    clearTimeout(timers.current[key])
+    timers.current[key] = setTimeout(() => post(path, body), APPLY_DEBOUNCE_MS)
+  }
+
+  const changeMode = (value) => {
+    setLedMode(value)
+    post('/lights/mode', { mode: BACKEND_MODE_BY_UI[value] || 'schedule' })
+    if (value === 'on') {
+      const { r, g, b } = parseHexColor(color)
+      post('/lights/color', { r, g, b })
+    }
+  }
+
+  const changeBrightness = (value) => {
+    setBrightness(value)
+    postDebounced('brightness', '/lights/brightness', { brightness: Number(value) })
+  }
+
+  const changeColor = (value) => {
+    setColor(value)
+    postDebounced('color', '/lights/color', parseHexColor(value))
+  }
+
+  const pumpAction = async (action) => {
+    try {
+      const response = await fetch(`${API_BASE}/pump/${action}`, { method: 'POST' })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setPumpStatus(data.error || `Request failed (HTTP ${response.status})`)
+        return
+      }
+      setPumpStatus(
+        action === 'run'
+          ? `Pump running — stops automatically after ${data.max_run_seconds}s.`
+          : 'Pump stopped.',
+      )
+    } catch (error) {
+      // Louder than a console.error: this control moves water, so a silent
+      // failure is not acceptable.
+      setPumpStatus(`Failed to ${action} pump: ${error.message}`)
+    }
+  }
+
+  return (
+    <>
+      <section className="panel-section">
+        <h2>Gantry</h2>
+
+        <div className="position-readout">Position: {gantryPosition}</div>
+
+        <div className="motion-grid">
+          <button className="primary" onClick={onHome}>Home Gantry</button>
+        </div>
+
+        <div className="motion-grid two-up">
+          <button onClick={() => onMove(-10)}>Move Left 10 mm</button>
+          <button onClick={() => onMove(10)}>Move Right 10 mm</button>
+        </div>
+
+        <div className="motion-grid two-up">
+          <button onClick={() => onMove(-50)}>Move Left 50 mm</button>
+          <button onClick={() => onMove(50)}>Move Right 50 mm</button>
+        </div>
+
+        <div className="subsection">
+          <h3>Move to Plant</h3>
+          <div className="plant-actions-grid">
+            {plants.map((plant) => (
+              <button key={plant.plant_id} onClick={() => onMoveToPlant(plant.plant_id)}>
+                {plant.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="panel-section">
+        <h2>Lighting</h2>
+
+        <div className="general-settings-form">
+          <div className="field-row">
+            <label>
+              LED mode
+              <select value={ledMode} onChange={(event) => changeMode(event.target.value)}>
+                <option value="schedule">Schedule</option>
+                <option value="on">On</option>
+                <option value="rainbow">Rainbow Mode</option>
+                <option value="off">Off</option>
+              </select>
+            </label>
+          </div>
+
+          {ledMode !== 'off' && (
+            <div className="field-row">
+              <label>
+                Brightness
+                <div className="slider-row">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={brightness}
+                    onChange={(event) => changeBrightness(Number(event.target.value))}
+                  />
+                  <span>{brightness}%</span>
+                </div>
+              </label>
+            </div>
+          )}
+
+          {ledMode === 'on' && (
+            <div className="field-row">
+              <label>
+                LED color
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(event) => changeColor(event.target.value)}
+                />
+              </label>
+            </div>
+          )}
+
+          <p className="field-hint">
+            Lighting applies as you change it. Strip type and colour order are in
+            Settings.
+          </p>
+
+          {lighting && lighting.spi_ready === false && (
+            <p className="field-hint warning">
+              LED output unavailable, SPI did not open
+              {lighting.error ? `: ${lighting.error}` : ''}
+            </p>
+          )}
+          {lightingError && <p className="field-hint warning">{lightingError}</p>}
+        </div>
+      </section>
+
+      <section className="panel-section">
+        <h2>Pump</h2>
+
+        <div className="general-settings-form">
+          <div className="field-row">
+            <div className="motion-grid two-up">
+              <button type="button" onClick={() => pumpAction('run')}>
+                Run Pump
+              </button>
+              {/* Never disabled: it is the panic control, and disabling it on
+                  the frontend's idea of state would fail exactly when that idea
+                  is wrong. Stopping an already-stopped pump is harmless. */}
+              <button type="button" onClick={() => pumpAction('stop')}>
+                Stop Pump
+              </button>
+            </div>
+            <p className="field-hint">
+              Runs the pump where it stands, without moving the gantry. It stops
+              on its own at the safety limit even if you close this page.
+            </p>
+            {pumpStatus && <p className="field-hint warning">{pumpStatus}</p>}
+          </div>
+        </div>
+      </section>
+    </>
+  )
+}

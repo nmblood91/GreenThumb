@@ -1,10 +1,9 @@
 export function TabBar({ activeTab, onChange }) {
   const tabs = [
-    { key: 'gantry', label: 'Gantry' },
-    { key: 'general', label: 'General' },
+    { key: 'controls', label: 'Controls' },
     { key: 'plants', label: 'Plants' },
-    { key: 'history', label: 'History' },
-    { key: 'logs', label: 'Logs' },
+    { key: 'sensors', label: 'Sensors' },
+    { key: 'settings', label: 'Settings' },
   ]
 
   return (

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { TopBar } from './components/TopBar'
 import { TabBar } from './components/TabBar'
-import { GantryPanel } from './components/GantryPanel'
-import { GeneralPanel } from './components/GeneralPanel'
+import { ControlsPanel } from './components/ControlsPanel'
+import { SettingsPanel } from './components/SettingsPanel'
 import { CalibrationPanel } from './components/CalibrationPanel'
 import { PlantsPanel } from './components/PlantsPanel'
 import { LogsPanel } from './components/LogsPanel'
@@ -27,7 +27,7 @@ const fetchJson = async (path, options = {}) => {
 
 
 function App() {
-  const [activeTab, setActiveTab] = useState('gantry')
+  const [activeTab, setActiveTab] = useState('controls')
   const [overview, setOverview] = useState(null)
   const [plants, setPlants] = useState([])
   const [logs, setLogs] = useState([])
@@ -83,6 +83,11 @@ function App() {
     const numericValue = Number(movement.position)
     return Number.isFinite(numericValue) ? `${numericValue} mm` : 'unknown'
   }, [overview])
+
+  const delivery = overview?.delivery
+  const deliveryPlant =
+    plants.find((item) => item.plant_id === delivery?.last?.plant_id)?.name ??
+    delivery?.last?.plant_id
 
   const homeGantry = async () => {
     try {
@@ -167,33 +172,51 @@ function App() {
       <TabBar activeTab={activeTab} onChange={setActiveTab} />
       <div className="status-bar">{status}</div>
 
-      {activeTab === 'gantry' && (
-        <GantryPanel
+      {/* Outside the tabs on purpose. A dose that delivered nothing is the one
+          thing that should not be hidden behind whichever tab you are not on.
+          Only the last dose is worth reporting: the outlet line is dry between
+          waterings by design, so live state says nothing. */}
+      {delivery?.enabled && delivery.last && delivery.last.delivered !== true && (
+        <div className="status-bar alert">
+          {delivery.last.delivered === false
+            ? `No water reached the outlet on the last dose (${deliveryPlant}, ${delivery.last.at}). Check the reservoir, then the line for a clog or an airlock.`
+            : `Could not verify the last dose (${deliveryPlant}) — the outlet sensor did not respond.`}
+        </div>
+      )}
+
+      {activeTab === 'controls' && (
+        <ControlsPanel
           plants={plants}
           gantryPosition={gantryPosition}
+          overview={overview}
           onHome={homeGantry}
           onMove={moveGantry}
           onMoveToPlant={moveToPlant}
         />
       )}
 
-      {activeTab === 'general' && (
+      {activeTab === 'plants' && (
+        <PlantsPanel plants={plants} onSave={savePlant} />
+      )}
+
+      {activeTab === 'sensors' && (
         <>
-          <GeneralPanel overview={overview} />
-          {/* Fetches and refreshes its own calibration state: a run takes
-              seconds and only this panel cares about the result. */}
+          {/* Both fetch their own data, so changing a range or running a
+              calibration does not reload the whole dashboard. */}
+          <HistoryPanel />
           <CalibrationPanel />
         </>
       )}
 
-      {activeTab === 'plants' && (
-        <PlantsPanel plants={plants} onSave={savePlant} />
+      {activeTab === 'settings' && (
+        <>
+          <SettingsPanel overview={overview} />
+          <LogsPanel logs={logs} />
+        </>
       )}
-      {/* Fetches its own data so changing the range does not reload the dashboard. */}
-      {activeTab === 'history' && <HistoryPanel />}
-      {activeTab === 'logs' && <LogsPanel logs={logs} />}
     </div>
   )
+
 }
 
 export default App

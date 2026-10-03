@@ -1,0 +1,114 @@
+import { useState } from 'react'
+
+// Relative so the page works from any device. An absolute localhost URL resolves
+// to whatever machine the browser is on, not the Pi.
+const API_BASE = '/api/v1'
+
+const DEFAULT_COLOR_ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR']
+
+export function SettingsPanel({ overview }) {
+  const lighting = overview?.lighting
+  const colorOrderOptions = lighting?.color_order_options ?? DEFAULT_COLOR_ORDERS
+  const chipOptions = lighting?.chip_options ?? []
+
+  const [chip, setChip] = useState('WS2812B')
+  const [colorOrder, setColorOrder] = useState('GRB')
+  const [cameraEnabled, setCameraEnabled] = useState(true)
+  const [status, setStatus] = useState('')
+
+  // Resynced during render rather than in an effect, so the form never paints
+  // one frame of stale values after a refresh.
+  const [syncedOverview, setSyncedOverview] = useState(null)
+  if (overview !== syncedOverview) {
+    setSyncedOverview(overview)
+    setChip(lighting?.chip ?? chip)
+    setColorOrder(lighting?.color_order ?? colorOrder)
+    setCameraEnabled(overview?.camera_enabled ?? cameraEnabled)
+  }
+
+  // Explicit save, unlike the lighting controls: these are build-time facts
+  // about the hardware, and selecting a chip resets the colour order to that
+  // chip's default, so the two have to be sent in a known order.
+  const save = async () => {
+    setStatus('')
+    try {
+      for (const [path, body] of [
+        ['/lights/chip', { chip }],
+        ['/lights/color-order', { color_order: colorOrder }],
+      ]) {
+        const response = await fetch(`${API_BASE}${path}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}))
+          setStatus(data.error || `Save failed (HTTP ${response.status})`)
+          return
+        }
+      }
+      setStatus('Saved.')
+    } catch (error) {
+      setStatus(`Save failed: ${error.message}`)
+    }
+  }
+
+  return (
+    <section className="panel-section">
+      <h2>Settings</h2>
+
+      <div className="general-settings-form">
+        <div className="field-row">
+          <label>
+            LED strip type
+            <select value={chip} onChange={(event) => setChip(event.target.value)}>
+              {chipOptions.map((option) => (
+                <option key={option.name} value={option.name}>
+                  {option.name} ({option.description})
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="field-hint">
+            Sets the signal timing for your strip. WS2811 drives three LEDs per
+            pixel, so set LED count to a third of the LEDs you can see.
+          </p>
+        </div>
+
+        <div className="field-row">
+          <label>
+            LED colour order
+            <select value={colorOrder} onChange={(event) => setColorOrder(event.target.value)}>
+              {colorOrderOptions.map((order) => (
+                <option key={order} value={order}>
+                  {order}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="field-hint">
+            If red and green look swapped on the strip, try a different order.
+            Choosing a strip type resets this to that chip's usual order, so set
+            the type first.
+          </p>
+        </div>
+
+        <div className="field-row">
+          <label className="checkbox-row">
+            <input
+              type="checkbox"
+              checked={cameraEnabled}
+              onChange={(event) => setCameraEnabled(event.target.checked)}
+            />
+            Camera enabled
+          </label>
+        </div>
+
+        <button type="button" className="primary save-settings-button" onClick={save}>
+          Save Settings
+        </button>
+        {status && <p className="field-hint warning">{status}</p>}
+      </div>
+    </section>
+  )
+}
