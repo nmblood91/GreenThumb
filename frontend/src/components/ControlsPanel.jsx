@@ -1,8 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-
-// Relative so the page works from any device. An absolute localhost URL resolves
-// to whatever machine the browser is on, not the Pi.
-const API_BASE = '/api/v1'
+import { API_BASE } from '../api'
 
 // A slider fires a change per pixel of drag. Lighting applies on the spot here
 // rather than behind a save button, so the writes are coalesced instead.

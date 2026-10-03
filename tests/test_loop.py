@@ -6,6 +6,7 @@ sys.modules["smbus2"] = types.ModuleType("smbus2")  # no I2C on the laptop
 from greenthumb.config import settings
 from greenthumb.hardware.soil_sensors import SoilSensorHub
 from greenthumb.models import SensorSample
+from tests.helpers import temp_state, temp_store
 from greenthumb.services.automation import GreenThumbAutomation, HardwareBusyError
 
 settings.auto_watering_enabled = True
@@ -65,21 +66,6 @@ class FakeLeds:
 
     def status(self):
         return {"mode": self.mode, "connected": True}
-
-
-def temp_state():
-    """Each suite gets its own settings file; tests must never touch the real one."""
-    import tempfile
-    from pathlib import Path
-    return Path(tempfile.mkdtemp()) / "state.json"
-
-
-def temp_store():
-    """Each suite gets its own database; tests must never touch the real one."""
-    import tempfile
-    from pathlib import Path
-    from greenthumb.history import HistoryStore
-    return HistoryStore(Path(tempfile.mkdtemp()) / "test.db")
 
 
 def build(raw):

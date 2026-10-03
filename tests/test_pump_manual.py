@@ -4,6 +4,7 @@ sys.modules["smbus2"] = types.ModuleType("smbus2")
 from greenthumb.config import settings
 from greenthumb.models import SensorSample
 from greenthumb.hardware.pump import PumpController
+from tests.helpers import temp_state, temp_store
 from greenthumb.services.automation import GreenThumbAutomation, HardwareBusyError
 
 settings.auto_watering_enabled = True
@@ -27,21 +28,6 @@ class Leds:
     mode = "schedule"
     def set_plant_segments(self, s): pass
     def status(self): return {"mode": "schedule"}
-
-
-def temp_state():
-    """Each suite gets its own settings file; tests must never touch the real one."""
-    import tempfile
-    from pathlib import Path
-    return Path(tempfile.mkdtemp()) / "state.json"
-
-
-def temp_store():
-    """Each suite gets its own database; tests must never touch the real one."""
-    import tempfile
-    from pathlib import Path
-    from greenthumb.history import HistoryStore
-    return HistoryStore(Path(tempfile.mkdtemp()) / "test.db")
 
 
 def build():

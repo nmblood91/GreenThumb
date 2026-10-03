@@ -3,8 +3,8 @@ from datetime import time as dtime
 
 sys.modules["smbus2"] = types.ModuleType("smbus2")
 
-from greenthumb.hardware.led_strip import AddressableStrip, CHIPS, encoding_table, RESET
-from greenthumb.hardware.lighting import LedController, colour_wheel
+from greenthumb.hardware.led_strip import AddressableStrip, CHIPS, DEFAULT_CHIP, encoding_table, RESET
+from greenthumb.hardware.lighting import LedController
 from greenthumb.services.automation import within_window
 
 # --- bit encoding, per chip: this is what the strip actually sees on the wire ---
@@ -137,7 +137,41 @@ assert len(strip.frames[-1]) == 60
 print("ok: an over-long segment is clipped to the strip")
 
 # colour order actually reorders the wire bytes
-rgb, grb = FakeStrip("RGB"), FakeStrip("GRB")
+# This had been claimed by a comment for a while without being tested: the two
+# FakeStrips that used to sit here were assigned and never used, and the
+# assertion below them checks something else entirely.
+class _Spi:
+    def __init__(self): self.written = bytearray()
+    def writebytes2(self, payload): self.written += payload
+
+
+def _wire_bytes(order, pixel):
+    strip = AddressableStrip.__new__(AddressableStrip)
+    strip.spi = _Spi()
+    strip.color_order = order
+    strip.chip = DEFAULT_CHIP
+    strip._table = encoding_table(DEFAULT_CHIP)
+    strip.error = None
+    assert strip.show([pixel]) is True
+    return bytes(strip.spi.written)
+
+
+# One channel at a time, so the position of the non-zero run in the payload
+# says which channel went out first.
+red_first = _wire_bytes("RGB", (255, 0, 0))
+green_first = _wire_bytes("GRB", (255, 0, 0))
+assert red_first != green_first, "RGB and GRB produced identical bytes"
+# Under GRB a pure red pixel puts green (zero) on the wire first, so the two
+# payloads are each other's first two channel blocks swapped.
+per_channel = (len(red_first) - len(RESET)) // 3
+assert red_first[:per_channel] == green_first[per_channel:per_channel * 2], (
+    "swapping R and G in the order did not swap those blocks on the wire"
+)
+assert red_first[per_channel * 2:] == green_first[per_channel * 2:], (
+    "the blue block should be unaffected by swapping R and G"
+)
+print("ok: colour order reorders the channel bytes on the wire")
+
 real = AddressableStrip.__new__(AddressableStrip)
 real.spi = None
 assert real.show([(1, 2, 3)]) is False

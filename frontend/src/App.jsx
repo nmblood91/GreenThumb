@@ -8,8 +8,7 @@ import { PlantsPanel } from './components/PlantsPanel'
 import { LogsPanel } from './components/LogsPanel'
 import { HistoryPanel } from './components/HistoryPanel'
 import './App.css'
-
-const API_BASE = '/api/v1'
+import { API_BASE } from './api'
 
 const fetchJson = async (path, options = {}) => {
   const response = await fetch(`${API_BASE}${path}`, {

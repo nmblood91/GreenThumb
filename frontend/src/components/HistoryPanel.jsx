@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Chart } from './Chart'
-
-const API_BASE = '/api/v1'
+import { API_BASE } from '../api'
 
 const RANGES = [
   { label: '6h', hours: 6 },

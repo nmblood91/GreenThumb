@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react'
-
-// Relative so the page works from any device. An absolute localhost URL resolves
-// to whatever machine the browser is on, not the Pi.
-const API_BASE = '/api/v1'
+import { API_BASE } from '../api'
 
 const DEFAULT_COLOR_ORDERS = ['RGB', 'RBG', 'GRB', 'GBR', 'BRG', 'BGR']
 
