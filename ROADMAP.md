@@ -55,6 +55,41 @@ What we want instead:
   `node_modules` on the shipped SD card. See the measurements below — the build
   itself is seconds, so install time is not an argument here.
 
+### Getting onto the customer's WiFi
+
+Also not near-term, and also recorded so the constraints are not rediscovered.
+
+A shipped unit is headless, has no Ethernet and has one USB port with the SKR
+in it. There is no fallback: if it cannot reach WiFi, there is no way in short
+of pulling the SD card. So first-run provisioning is a hard requirement for
+shipping, not a nicety.
+
+**`greenthumb.local` does not solve this.** mDNS resolves a hostname on a
+network the Pi has already joined -- it is link-local multicast, so with no
+connection there is no link to multicast over. A Pi with no WiFi configured
+broadcasts nothing and is simply unreachable. The answer has to be the device
+bringing up its own access point and serving a setup page.
+
+Three constraints that shape it:
+
+- **The built-in WiFi chip cannot scan while acting as an access point.** So
+  the setup page cannot offer "pick your network from a list" on a unit that
+  has never connected -- there is nothing cached to list. Either the customer
+  types their SSID, or the firmware cycles scan/AP, which is slow and
+  unreliable. Design the screen around typing.
+- **The usual tools are mid-churn.** balena wifi-connect, comitup and RaspAP
+  all have problems with the netplan + NetworkManager stack that current
+  Raspberry Pi OS is moving to. Newer options exist but are young. Whatever is
+  picked, pick it against the OS image actually being shipped.
+- **The OS image is not pinned.** deploy/README.md says "Raspberry Pi OS
+  (64-bit)", which is whatever rpi-imager is offering that week. Bookworm and
+  Trixie behave differently here. Pin the image before choosing a tool, or the
+  choice is made against a moving target.
+
+This belongs with the packaging work above rather than before it. Provisioning,
+the .deb and the factory image are one push: the image is where provisioning is
+baked in, and doing it first means doing it twice.
+
 **Supported hardware floor: Raspberry Pi 3 Model B+.** That is a deliberate
 constraint, and it settles a few things: 1 GB of RAM means the on-device frontend
 build still works, so prebuilt bundles are a reliability improvement rather than
