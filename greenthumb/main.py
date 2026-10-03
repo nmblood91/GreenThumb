@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from greenthumb.config import settings
 from greenthumb.logging_setup import log_event, read_recent_logs, setup_logging
+from greenthumb import system_clock
 from greenthumb.services.automation import GreenThumbAutomation, HardwareBusyError
 
 setup_logging()
@@ -103,6 +104,25 @@ def get_overview() -> dict[str, object]:
 @app.get(f"{settings.api_prefix}/sensors")
 async def read_sensors() -> list[dict[str, object]]:
     return automation.read_sensors()
+
+
+@app.get(f"{settings.api_prefix}/system/time")
+def get_system_time() -> dict[str, object]:
+    return system_clock.status()
+
+
+@app.post(f"{settings.api_prefix}/system/timezone")
+def set_system_timezone(payload: dict[str, str] = Body(default_factory=dict)) -> dict[str, object]:
+    """Point the host at a timezone, normally the one the browser reports.
+
+    An unknown zone raises ValueError and comes back as a 400 through the
+    app-level handler; a timedatectl that refuses raises RuntimeError, which is
+    a 500 because it means the host is not set up to allow this.
+    """
+    name = str(payload.get("timezone", ""))
+    result = system_clock.set_timezone(name)
+    log_event(f"System timezone set to {result['timezone']}")
+    return result
 
 
 @app.get(f"{settings.api_prefix}/sensors/calibration")

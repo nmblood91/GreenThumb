@@ -224,6 +224,24 @@ else
   echo "Or systemd status: sudo systemctl status klipper"
 fi
 
+# Let the API set the timezone, and nothing else. The lighting schedule runs on
+# wall-clock time, so a planter in the wrong zone lights at the wrong hours, and
+# the UI fixes that in one tap -- but the service runs as pi and timedatectl
+# needs root. Scoped to the one subcommand: set-timezone only, so this grants no
+# ability to change the clock, disable NTP, or run anything else.
+SUDOERS_FILE=/etc/sudoers.d/greenthumb-timedatectl
+echo "pi ALL=(root) NOPASSWD: /usr/bin/timedatectl set-timezone *" | sudo tee "$SUDOERS_FILE" >/dev/null
+sudo chmod 0440 "$SUDOERS_FILE"
+# visudo -c rather than trusting the write: a malformed sudoers file can lock
+# sudo out entirely, so remove it again rather than leave that behind.
+if sudo visudo -c -f "$SUDOERS_FILE" >/dev/null 2>&1; then
+  echo "✓ API may set the system timezone"
+else
+  sudo rm -f "$SUDOERS_FILE"
+  echo "⚠️  Could not install the timezone sudoers rule; set the zone with"
+  echo "    sudo timedatectl set-timezone <Area/City>"
+fi
+
 sudo cp /opt/greenthumb/deploy/systemd/greenthumb-api.service /etc/systemd/system/greenthumb-api.service
 sudo systemctl daemon-reload
 # Same as Klipper above: `--now` would not restart an already-running service,
