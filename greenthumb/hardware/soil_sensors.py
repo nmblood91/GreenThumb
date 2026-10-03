@@ -280,10 +280,53 @@ def _soak(hub: SoilSensorHub, seconds: int, interval: float) -> int:
 # in air. Writing it would make the zone read 100% permanently.
 MIN_CALIBRATION_SPAN = 50
 
-# A stable sensor in a uniform medium barely moves; yours held 6-13 counts in
-# air. Much more than this and the reading had not settled, so the median is
-# being taken over a moving target.
-UNSTABLE_SPREAD = 40
+# Quality thresholds for a sampling run, both relative to the reading itself.
+#
+# An absolute count does not work here: sensor noise scales with the value, so
+# a fixed budget that is comfortable at a dry ~330 is roughly two and a half
+# times stricter at a wet ~800. Calibrating the wet point in water failed on
+# that alone, at 54-64 counts, while air passed at 6-13.
+#
+# DRIFT is the one that means "had not settled" -- a sensor still taking up
+# water, or coming to temperature, moves steadily in one direction, which shows
+# as a gap between the first half of the run and the second. Symmetric noise
+# does not move it.
+#
+# NOISE_BAND is the looser sanity check, measured p5-to-p95 rather than
+# min-to-max so that one bubble letting go, or a single glitched read out of
+# several hundred, cannot veto an otherwise clean run.
+DRIFT_FLOOR = 15
+DRIFT_FRACTION = 0.03
+NOISE_FLOOR = 30
+NOISE_FRACTION = 0.08
+
+
+def _percentile(sorted_values: list[float], fraction: float) -> float:
+    if not sorted_values:
+        return 0.0
+    index = min(len(sorted_values) - 1, max(0, int(round(fraction * (len(sorted_values) - 1)))))
+    return sorted_values[index]
+
+
+def sample_quality(values: list[float]) -> dict[str, int]:
+    """Median, settling drift and noise band for one sensor's samples."""
+    ordered = sorted(values)
+    median = statistics.median(values)
+    half = len(values) // 2
+    # Compared by median per half, so the drift figure is not itself dragged
+    # around by the noise it is meant to look past.
+    drift = (
+        abs(statistics.median(values[half:]) - statistics.median(values[:half]))
+        if half
+        else 0.0
+    )
+    return {
+        "value": int(round(median)),
+        "drift": int(round(drift)),
+        "band": int(round(_percentile(ordered, 0.95) - _percentile(ordered, 0.05))),
+        "drift_allowed": int(round(max(DRIFT_FLOOR, DRIFT_FRACTION * median))),
+        "band_allowed": int(round(max(NOISE_FLOOR, NOISE_FRACTION * median))),
+    }
 
 
 def calibrate(
@@ -328,17 +371,35 @@ def calibrate(
             results[address] = outcome
             continue
 
-        value = int(round(statistics.median(values)))
-        spread = int(max(values) - min(values))
-        outcome.update(value=value, spread=spread, samples=len(values))
+        quality = sample_quality(values)
+        value = quality["value"]
+        outcome.update(samples=len(values), **quality)
+        # Kept under its old name so the CLI table and the web panel, which
+        # both print a "spread" column, keep working.
+        outcome["spread"] = quality["band"]
 
-        if spread > UNSTABLE_SPREAD:
+        if quality["drift"] > quality["drift_allowed"]:
             outcome.update(
                 written=False,
                 reason=(
-                    f"Readings drifted {spread} counts while sampling, more than "
-                    f"the {UNSTABLE_SPREAD} expected of a settled sensor. Leave it where it "
-                    "is for a minute, then run this again."
+                    f"Reading moved {quality['drift']} points from the start of the "
+                    f"run to the end, more than the {quality['drift_allowed']} expected "
+                    f"of a settled sensor at this level. It is still taking up water "
+                    "or coming to temperature. Leave it in place for a minute, then "
+                    "run this again."
+                ),
+            )
+            results[address] = outcome
+            continue
+
+        if quality["band"] > quality["band_allowed"]:
+            outcome.update(
+                written=False,
+                reason=(
+                    f"Readings are jumping around by {quality['band']} points, more "
+                    f"than the {quality['band_allowed']} expected at this level. Check "
+                    "the sensor is held still and not touching the side of the "
+                    "container, and run the bus soak test if it persists."
                 ),
             )
             results[address] = outcome
@@ -353,7 +414,7 @@ def calibrate(
                 outcome.update(
                     written=False,
                     reason=(
-                        f"Wet reading {value} is only {value - other['dry']} counts "
+                        f"Wet reading {value} is only {value - other['dry']} points "
                         f"above this sensor's dry point of {other['dry']}, and at least "
                         f"{MIN_CALIBRATION_SPAN} is expected. Is this sensor actually "
                         "in the water?"
@@ -366,7 +427,7 @@ def calibrate(
                 outcome.update(
                     written=False,
                     reason=(
-                        f"Dry reading {value} is only {other['wet'] - value} counts "
+                        f"Dry reading {value} is only {other['wet'] - value} points "
                         f"below this sensor's wet point of {other['wet']}, and at least "
                         f"{MIN_CALIBRATION_SPAN} is expected. Is this sensor dry and "
                         "out in the air?"

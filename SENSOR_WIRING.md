@@ -96,12 +96,21 @@ The calibrator will not write a value it does not believe, and says why:
 | Message begins | Cause |
 |---|---|
 | `No sensor answered at this address` | unplugged, wrong address, or a bus fault — run `--soak` |
-| `Readings drifted N counts while sampling` | the sensor had not settled; let it sit and retry |
-| `Wet reading X is only N counts above…` | the wet pass ran with the sensor still in air, or it never reached the water |
-| `Dry reading X is only N counts below…` | the dry pass ran on a sensor that was still wet |
+| `Reading moved N points from the start of the run to the end` | still taking up water or coming to temperature; leave it and retry |
+| `Readings are jumping around by N points` | the sensor is being moved, touching the container wall, or the bus is unreliable |
+| `Wet reading X is only N points above…` | the wet pass ran with the sensor still in air, or it never reached the water |
+| `Dry reading X is only N points below…` | the dry pass ran on a sensor that was still wet |
 
-Each message names the measured value, the gap it fell short by and the gap
-expected, so the number tells you whether it was close or nowhere near.
+Each message names what was measured and what was expected, so the numbers tell
+you whether it was marginal or nowhere near.
+
+**Both quality limits scale with the reading**, because sensor noise does. A
+budget that is comfortable at a dry reading of ~330 is about two and a half
+times stricter at a wet ~800, so a fixed count would fail the wet pass on
+nothing but arithmetic — which it did, at 54-64 points, while air passed at
+6-13. Drift is measured between the first and second half of the run, and noise
+as a 5th-to-95th percentile band so a single bubble or glitched read cannot veto
+several hundred good samples.
 
 Nothing is stored for that sensor, so a refused pass leaves the previous
 calibration intact rather than half-overwriting it.
