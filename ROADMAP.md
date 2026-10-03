@@ -115,9 +115,9 @@ details:
   cold measurement below has not been taken yet.
 - **WiFi onboarding becomes a product requirement.** The A+ has no Ethernet and
   one USB port, which the SKR occupies. A headless unit with a bad WiFi
-  configuration cannot be recovered in the field without pulling the SD card, so
-  provisioning — AP mode, a captive portal, something — has to be designed, not
-  left to `rpi-imager` presets.
+  configuration cannot be recovered in the field without pulling the SD card.
+  Written up under *Getting onto the customer's WiFi* above, including why
+  `greenthumb.local` does not solve it.
 - **32-bit versus 64-bit reopens.** The 1 GB floor had settled this on arm64. At
   512 MB, armhf is meaningfully lighter, and a release artifact has to target
   one or build both. Decide before the packaging work, not after.

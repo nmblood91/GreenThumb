@@ -42,6 +42,11 @@ For a clean installation with the latest OS, start here:
    - Choose **Raspberry Pi OS (64-bit)**
    - Set hostname: `greenthumb`
    - Enable SSH
+   - Set your WiFi network and country in the imager's advanced options.
+     That is how a *development* Pi joins a network, and it is not how a
+     shipped unit can work, since the customer's network is unknown at
+     flashing time. See *Getting onto the customer's WiFi* in
+     [ROADMAP.md](../ROADMAP.md)
    - **Username must be `pi`** — the systemd service, the Klipper paths, and the
      install script all reference `/home/pi` and run the API as `pi`. Any other
      username requires editing those in step with each other.
