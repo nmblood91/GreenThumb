@@ -2,7 +2,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "GreenThumb"
+    # The product name, which is what any of this that reaches a screen should
+    # say. The software, the package and the paths stay "greenthumb"; that name
+    # is ours and never shown to whoever owns the planter.
+    app_name: str = "Herman"
     api_prefix: str = "/api/v1"
     klipper_host: str = "/run/klipper/uds"
     moisture_sensor_addresses: str = "54,55,56,57"

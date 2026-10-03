@@ -1,4 +1,4 @@
-# GreenThumb Bill of Materials (Initial Prototype / Production Planning)
+# Herman Bill of Materials (Initial Prototype / Production Planning)
 
 ## Core structure
 - Modified IKEA VITTSJÖ frame
@@ -105,7 +105,7 @@ inverted.
 - Sensor and watering service logic
 
 ## UI
-- Local web app served from the Pi, reached at `http://greenthumb.local` on the
+- Local web app served from the Pi, reached at `http://herman.local` on the
   same network. No smartphone app and no cloud account — see
   [PRIVACY_SECURITY_SPEC.md](PRIVACY_SECURITY_SPEC.md) for why local-only is
   deliberate

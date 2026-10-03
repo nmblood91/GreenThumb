@@ -88,7 +88,8 @@ export function CalibrationPanel() {
           detail
             ? `Calibration failed (${response.status}): ${detail}`
             : `Calibration failed (HTTP ${response.status}). If this is a 404, ` +
-              'the API is older than this page — restart greenthumb-api.',
+              'the planter software is older than this page. Restart the ' +
+              'greenthumb-api service on the Pi.',
         )
         return
       }

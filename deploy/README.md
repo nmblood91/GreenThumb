@@ -1,6 +1,6 @@
-# GreenThumb Pi Deployment
+# Herman Pi Deployment
 
-This folder contains the deployment files needed to run GreenThumb on a Raspberry Pi with a single-axis gantry driven by Klipper.
+This folder contains the deployment files needed to run Herman on a Raspberry Pi with a single-axis gantry driven by Klipper.
 
 ## Files
 
@@ -20,7 +20,7 @@ The SKR Mini E3 V2 board comes with an onboard micro-SD card reader that contain
 ### Flashing steps (per unit):
 
 1. **Get the firmware file onto an SD card:**
-   - On your laptop: Clone or download the GreenThumb repo
+   - On your laptop: Clone or download the GreenThumb repo (the software keeps its own name)
    - Locate `deploy/klipper/firmware.bin`
    - Insert the SD card into your laptop's card reader
    - Copy `firmware.bin` to the root of the SD card (it must be named exactly `firmware.bin`)
@@ -40,7 +40,9 @@ For a clean installation with the latest OS, start here:
 
 1. **Flash Pi OS** using [Raspberry Pi Imager](https://www.raspberrypi.com/software/):
    - Choose **Raspberry Pi OS (64-bit)**
-   - Set hostname: `greenthumb`
+   - Set hostname: `herman` — this is the address the owner types, so it is
+     the product name rather than the software's. The Python package, the
+     service and `/opt/greenthumb` keep their own name and are never shown
    - Enable SSH
    - Set your WiFi network and country in the imager's advanced options.
      That is how a *development* Pi joins a network, and it is not how a
@@ -55,7 +57,7 @@ For a clean installation with the latest OS, start here:
 
 3. **SSH into the Pi**:
    ```bash
-   ssh pi@greenthumb.local
+   ssh pi@herman.local
    ```
 
 4. **Install git and clone the repo**:
@@ -109,9 +111,25 @@ For a clean installation with the latest OS, start here:
    a flaky sensor months later — see **Wiring the Soil Sensors** below.
 
 8. **Open the web UI**:
-   - Open `http://greenthumb.local` in your browser
+   - Open `http://herman.local` in your browser
    - Or use the Pi's IP: `http://<pi-ip>`
 
+
+## Renaming an existing Pi
+
+A Pi flashed before the product was named `herman` still answers to
+`greenthumb.local`. Nothing in the code depends on the hostname, so it is one
+command and a reboot:
+
+```bash
+sudo hostnamectl set-hostname herman
+sudo sed -i 's/greenthumb/herman/g' /etc/hosts
+sudo reboot
+```
+
+After that it is `herman.local`, and `greenthumb.local` stops resolving — so
+update any bookmark or SSH config pointing at the old name. `/opt/greenthumb`,
+the systemd units and the Python package are unaffected and keep their names.
 
 ## Updating an installed Pi
 
@@ -897,7 +915,7 @@ sudo systemctl status nginx
 tail -50 ~/klipper_logs/klippy.log
 ```
 
-**Check GreenThumb API logs:**
+**Check the API logs:**
 ```bash
 sudo journalctl -u greenthumb-api.service -n 50
 ```

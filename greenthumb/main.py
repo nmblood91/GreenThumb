@@ -55,7 +55,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title=settings.app_name,
-    description="Smart planter automation platform for the GreenThumb hardware stack.",
+    description="Local API for Herman the Gardening Robot. Internally the greenthumb package.",
     version="0.1.0",
     lifespan=lifespan,
 )

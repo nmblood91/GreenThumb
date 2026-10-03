@@ -1,8 +1,8 @@
-# GreenThumb Product Specification
+# Herman Product Specification
 
 ## Product concept
 
-GreenThumb is a smart indoor planter system designed to automate and optimize plant care for home, office, and premium interior environments. The system combines hardware and software to provide automatic watering, lighting control, environmental visibility, and plant management.
+Herman is a smart indoor planter system designed to automate and optimize plant care for home, office, and premium interior environments. The system combines hardware and software to provide automatic watering, lighting control, environmental visibility, and plant management.
 
 **Architectural note:** The software organizes the frame into four **plants** — fixed positions, each with its own soil sensor, rail coordinate and LED segment. A plant is the unit of configuration, control and monitoring, and what is growing there is recorded as that plant's name, which the owner can change.
 

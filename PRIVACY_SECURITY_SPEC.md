@@ -1,14 +1,14 @@
-# GreenThumb Privacy and Security Specification
+# Herman Privacy and Security Specification
 
 ## Purpose
 
-This document defines the product security and privacy posture for GreenThumb. The system is planned as a local-only smart planter product intended for installation in private homes. The camera, sensor data, and automation controls are not to be exposed to the public internet by default.
+This document defines the product security and privacy posture for Herman. The system is planned as a local-only smart planter product intended for installation in private homes. The camera, sensor data, and automation controls are not to be exposed to the public internet by default.
 
 This document is intended to guide future AI agents, contributors, and engineers so they understand the security requirements before making changes to the project.
 
 ## Core design principle
 
-GreenThumb is a privacy-first local system.
+Herman is a privacy-first local system.
 
 - No cloud backend is required for normal operation.
 - No public internet exposure is required for normal operation.
@@ -32,7 +32,7 @@ The following rules are mandatory for all future implementation work:
 ## Product security model
 
 ### Local-first architecture
-- Raspberry Pi runs the GreenThumb application locally.
+- Raspberry Pi runs the planter software locally.
 - Dashboard is served on the local network.
 - Camera footage is stored locally.
 - All automation logic runs on-device.
@@ -106,7 +106,7 @@ Future code changes must respect the following standards:
 - disable unused system services
 - enable firewall rules to allow only local traffic needed by the app
 - avoid exposing SSH externally
-- restrict local network access to the GreenThumb web app
+- restrict local network access to Herman's web app
 
 ### Application hardening
 - use HTTPS locally if serving over a browser on the LAN, with local certificate management
@@ -149,10 +149,10 @@ The following are explicitly disallowed in the default product configuration:
 
 ## Commercial positioning
 
-GreenThumb is a privacy-first smart home product, not a cloud-connected surveillance device.
+Herman is a privacy-first smart home product, not a cloud-connected surveillance device.
 
 This is a product advantage, not a limitation. Customers who place a camera in a home environment will trust a local-only system far more than a cloud-connected one.
 
 ## Final policy statement
 
-Any future work on GreenThumb must preserve local-first, privacy-safe operation. If a proposed feature requires cloud connectivity, public exposure, remote camera access, or outbound telemetry, it must be explicitly flagged and rejected unless the product design decides to create a separate optional feature with clear user consent and strong documentation.
+Any future work on Herman must preserve local-first, privacy-safe operation. If a proposed feature requires cloud connectivity, public exposure, remote camera access, or outbound telemetry, it must be explicitly flagged and rejected unless the product design decides to create a separate optional feature with clear user consent and strong documentation.

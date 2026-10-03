@@ -1,10 +1,10 @@
-# GreenThumb Commercial Strategy
+# Herman Commercial Strategy
 
-This document clarifies that GreenThumb is a physical product business, not just a software project. The hardware system is the core product, and the software is the system layer that makes the hardware useful, reliable, and commercially viable.
+This document clarifies that Herman is a physical product business, not just a software project. The hardware system is the core product, and the software is the system layer that makes the hardware useful, reliable, and commercially viable.
 
 ## Product definition
 
-GreenThumb is a smart indoor planter system built around:
+Herman is a smart indoor planter system built around:
 - a modified IKEA VITTSJÖ frame
 - black-brown melamine shelf at the bottom and glass on top
 - 1000 mm 2020 extrusion rail mounted to the rear uprights

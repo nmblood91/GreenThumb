@@ -2,7 +2,7 @@
 
 ## Overview
 
-GreenThumb uses four Adafruit STEMMA soil moisture sensors connected via an I2C hub to the Raspberry Pi. Each sensor reads capacitive moisture and temperature for one plant.
+Herman uses four Adafruit STEMMA soil moisture sensors connected via an I2C hub to the Raspberry Pi. Each sensor reads capacitive moisture and temperature for one plant.
 
 ## I2C Hub Connection to Raspberry Pi
 

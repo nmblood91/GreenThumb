@@ -1,4 +1,4 @@
-# How GreenThumb Decides to Water
+# How Herman Decides to Water
 
 This explains, in plain language, how the planter figures out that a plant is
 thirsty and what it does about it. No programming knowledge needed.

@@ -1,7 +1,7 @@
-# GreenThumb Power System
+# Herman Power System
 
 ## Overview
-GreenThumb uses a 12V primary bus with a DC-DC converter for 5V logic. All components draw from a central busbar with fused circuits.
+Herman uses a 12V primary bus with a DC-DC converter for 5V logic. All components draw from a central busbar with fused circuits.
 
 ## Power Supply Specifications
 

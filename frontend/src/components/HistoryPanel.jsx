@@ -20,6 +20,9 @@ const toFahrenheit = (celsius) => (celsius == null ? null : celsius * 9 / 5 + 32
 // and someone reading the chart on a phone should not change what the laptop
 // shows. localStorage can throw in a private window, so it never breaks the
 // panel if it is unavailable.
+// Deliberately not renamed with the product: this is a localStorage key
+// nobody sees, and changing it would silently discard the °F preference
+// of anyone who had already set one.
 const UNIT_KEY = 'greenthumb.tempUnit'
 
 const storedUnit = () => {

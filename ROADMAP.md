@@ -1,4 +1,4 @@
-# GreenThumb Roadmap
+# Herman Roadmap
 
 ## Phase 1: Prototype and validation
 - confirm hardware layout and enclosure fit
@@ -64,7 +64,7 @@ in it. There is no fallback: if it cannot reach WiFi, there is no way in short
 of pulling the SD card. So first-run provisioning is a hard requirement for
 shipping, not a nicety.
 
-**`greenthumb.local` does not solve this.** mDNS resolves a hostname on a
+**`herman.local` does not solve this.** mDNS resolves a hostname on a
 network the Pi has already joined -- it is link-local multicast, so with no
 connection there is no link to multicast over. A Pi with no WiFi configured
 broadcasts nothing and is simply unreachable. The answer has to be the device
@@ -117,7 +117,7 @@ details:
   one USB port, which the SKR occupies. A headless unit with a bad WiFi
   configuration cannot be recovered in the field without pulling the SD card.
   Written up under *Getting onto the customer's WiFi* above, including why
-  `greenthumb.local` does not solve it.
+  `herman.local` does not solve it.
 - **32-bit versus 64-bit reopens.** The 1 GB floor had settled this on arm64. At
   512 MB, armhf is meaningfully lighter, and a release artifact has to target
   one or build both. Decide before the packaging work, not after.
@@ -186,4 +186,4 @@ artifact needs one source of truth for version.
 
 ## Long-term vision
 
-GreenThumb becomes a product line of smart indoor plant systems for homes, offices, and premium spaces, combining plant care automation, environmental monitoring, and consistent design aesthetics.
+Herman becomes a product line of smart indoor plant systems for homes, offices, and premium spaces, combining plant care automation, environmental monitoring, and consistent design aesthetics.

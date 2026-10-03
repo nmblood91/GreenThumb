@@ -30,7 +30,7 @@ function App() {
   const [overview, setOverview] = useState(null)
   const [plants, setPlants] = useState([])
   const [logs, setLogs] = useState([])
-  const [status, setStatus] = useState('Loading GreenThumb...')
+  const [status, setStatus] = useState('Waking Herman up...')
 
   // Motion endpoints answer 200 with {ok: false, error} when Klipper refuses
   // the move, so a successful request is not a successful move.

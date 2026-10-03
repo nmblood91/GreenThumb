@@ -2,8 +2,8 @@ export function TopBar() {
   return (
     <header className="topbar">
       <div>
-        <p className="eyebrow">GreenThumb</p>
-        <h1>Local grow system</h1>
+        <p className="eyebrow">Herman</p>
+        <h1>the Gardening Robot</h1>
       </div>
     </header>
   )

@@ -1,6 +1,11 @@
-# GreenThumb
+# Herman the Gardening Robot
 
-GreenThumb is a Python-based software foundation for a smart indoor planter / grow frame that combines:
+**Herman** is the product. **GreenThumb** is the software that runs it — the
+Python package, the systemd units and `/opt/greenthumb` all keep that name, and
+none of it is shown to whoever owns the planter. If a string reaches a screen
+it says Herman.
+
+Herman is a smart indoor planter / grow frame that combines:
 - a motion system driven by a BTT SKR Mini E3 V2 and Klipper
 - a Raspberry Pi host running Klipper
 - four capacitive soil sensors on an I2C hub
@@ -77,7 +82,7 @@ Everything is under `/api/v1`, grouped roughly as:
 | `/system/time`, `/system/timezone` | the planter's clock |
 
 **The full, current list is generated from the routes themselves** at
-<http://greenthumb.local:8000/docs> — interactive, and it cannot go stale the
+<http://herman.local:8000/docs> — interactive, and it cannot go stale the
 way a hand-written list here did.
 
 Note the port. Nginx serves the web UI on 80 but proxies only `/api/` and
@@ -85,11 +90,11 @@ Note the port. Nginx serves the web UI on 80 but proxies only `/api/` and
 
 Example:
 
-`curl http://greenthumb.local:8000/api/v1/overview`
+`curl http://herman.local:8000/api/v1/overview`
 
 ## Local web UI
 
-Nginx serves the built React app from the Pi. **Open `http://greenthumb.local`**
+Nginx serves the built React app from the Pi. **Open `http://herman.local`**
 — port 80, not 8000. Port 8000 is the API, and asking it for `/` returns a JSON
 status blob rather than the page.
 
