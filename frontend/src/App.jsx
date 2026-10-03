@@ -160,30 +160,6 @@ function App() {
     }
   }
 
-  const waterPlant = async (plantId) => {
-    try {
-      const plant = plants.find((item) => item.plant_id === plantId)
-      const label = plant?.name || plantId
-      // The request does not return until the gantry has moved and the dose has
-      // finished, which is over a minute, so say so rather than looking hung.
-      setStatus(`Watering ${label}, this takes a minute...`)
-      const result = await fetchJson(`/water/${plantId}`, { method: 'POST' })
-      // delivered is null when no outlet sensor is fitted, so only false is a
-      // failure — the pump ran and nothing came out the other end.
-      const delivery =
-        result?.delivered === false
-          ? ' but no water reached the outlet — check the reservoir and the line'
-          : ''
-      setStatus(
-        result?.status === 'error'
-          ? `Water ${label}: failed - ${result.error}`
-          : `Watered ${label} with ${result.volume_ml} mL${delivery}.`,
-      )
-      await loadDashboard()
-    } catch (error) {
-      setStatus(`Water failed: ${error.message}`)
-    }
-  }
 
   return (
     <div className="app-shell">
@@ -211,7 +187,7 @@ function App() {
       )}
 
       {activeTab === 'plants' && (
-        <PlantsPanel plants={plants} onSave={savePlant} onWater={waterPlant} />
+        <PlantsPanel plants={plants} onSave={savePlant} />
       )}
       {/* Fetches its own data so changing the range does not reload the dashboard. */}
       {activeTab === 'history' && <HistoryPanel />}

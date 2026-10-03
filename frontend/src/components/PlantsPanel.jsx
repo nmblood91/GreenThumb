@@ -9,7 +9,7 @@ const draftFrom = (plant) => ({
   position_mm: plant.position_mm ?? 0,
 })
 
-export function PlantsPanel({ plants, onSave, onWater }) {
+export function PlantsPanel({ plants, onSave }) {
   const [drafts, setDrafts] = useState({})
   const [expandedPlantIds, setExpandedPlantIds] = useState([])
 
@@ -123,7 +123,6 @@ export function PlantsPanel({ plants, onSave, onWater }) {
                     >
                       Save Plant
                     </button>
-                    <button onClick={() => onWater(plant.plant_id)}>Water Now</button>
                   </div>
                 </>
               )}
