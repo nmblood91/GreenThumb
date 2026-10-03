@@ -25,7 +25,7 @@ class Hub:
 
 class Leds:
     mode = "schedule"
-    def set_zone_segments(self, s): pass
+    def set_plant_segments(self, s): pass
     def status(self): return {"mode": "schedule"}
 
 
@@ -80,7 +80,7 @@ print("ok: control loop skips while a manual run holds the lock")
 # and resumes once stopped, proving the lock was really released
 auto.stop_pump()
 assert not auto._hardware_lock.locked(), "lock leaked after stop"
-auto._last_watered.clear()  # zones are in cooldown from the first ticks
+auto._last_watered.clear()  # plants are in cooldown from the first ticks
 auto.tick()
 assert len(klip.moves) > watered_before, "control loop did not resume after stop"
 print("ok: control loop resumes after stop, lock was released")

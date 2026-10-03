@@ -116,7 +116,7 @@ class LedController:
             for red, green, blue in pixels
         ]
 
-    def set_zone_segments(self, segments: list[tuple[int, int, bool]]) -> None:
+    def set_plant_segments(self, segments: list[tuple[int, int, bool]]) -> None:
         """Which LED ranges the schedule wants lit; ignored in the other modes."""
         if segments != self._segments:
             self._segments = segments

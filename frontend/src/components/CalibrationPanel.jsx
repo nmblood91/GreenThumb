@@ -215,7 +215,7 @@ export function CalibrationPanel() {
           })}
           <p className="field-hint">
             Air and water measure the sensor's full range, not the soil's. Dry
-            soil reads around 30-40% on that scale, but you should fine tune each zone's target by
+            soil reads around 30-40% on that scale, but you should fine tune each plant's target by
             watching the History tab to see how a sensor is reading.
           </p>
         </div>

@@ -5,11 +5,11 @@ from datetime import datetime, time
 
 
 @dataclass
-class ZoneSpec:
+class PlantSpec:
     name: str
-    zone_id: str
+    plant_id: str
     sensor_address: int
-    # Required rather than defaulted: every zone sets these, and a default that
+    # Required rather than defaulted: every plant sets these, and a default that
     # no caller uses is a value nobody notices is wrong.
     moisture_target: int
     watering_volume_ml: int
@@ -32,8 +32,8 @@ class SensorSample:
 
 
 @dataclass
-class ZoneStatus:
-    zone_id: str
+class PlantStatus:
+    plant_id: str
     moisture_percent: float
     target_moisture: float
     pump_active: bool = False

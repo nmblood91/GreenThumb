@@ -2,7 +2,7 @@
 
 ## Overview
 
-GreenThumb uses four Adafruit STEMMA soil moisture sensors connected via an I2C hub to the Raspberry Pi. Each sensor reads capacitive moisture and temperature for one plant zone.
+GreenThumb uses four Adafruit STEMMA soil moisture sensors connected via an I2C hub to the Raspberry Pi. Each sensor reads capacitive moisture and temperature for one plant.
 
 ## I2C Hub Connection to Raspberry Pi
 
@@ -19,12 +19,12 @@ The I2C hub connects to the Raspberry Pi's I2C Bus 1 using four wires:
 
 Each STEMMA soil sensor must be configured with a unique I2C address to prevent collisions on the shared bus. The default addresses are:
 
-| Zone | Address | Hex |
+| Plant | Address | Hex |
 |------|---------|-----|
-| Zone 1 | 54 | 0x36 |
-| Zone 2 | 55 | 0x37 |
-| Zone 3 | 56 | 0x38 |
-| Zone 4 | 57 | 0x39 |
+| Plant 1 | 54 | 0x36 |
+| Plant 2 | 55 | 0x37 |
+| Plant 3 | 56 | 0x38 |
+| Plant 4 | 57 | 0x39 |
 
 Configure sensor addresses using the A0 and A1 address pads on each sensor according to the Adafruit STEMMA documentation.
 
@@ -32,7 +32,7 @@ Configure sensor addresses using the A0 and A1 address pads on each sensor accor
 
 The 5-port STEMMA QT passive hub distributes I2C signals to:
 - 1 port: back to Raspberry Pi
-- 4 ports: to each zone's soil moisture sensor
+- 4 ports: to each plant's soil moisture sensor
 
 ## Configuration
 
@@ -84,7 +84,7 @@ will read somewhere around 30-40% and a well-watered pot perhaps 80%.
 
 That is deliberate. Air and a cup of water are repeatable anywhere, including on
 a production line; "soil the plant would want watering in" is not. The
-consequence is that a zone's **moisture target is a number you tune by
+consequence is that a plant's **moisture target is a number you tune by
 observation**, not a physical quantity. The History tab exists for exactly that:
 watch moisture against watering events over a few days and move the target until
 the plant is being watered when you would have watered it.
@@ -141,7 +141,7 @@ Raw sensor readings will be returned. If a sensor cannot be read, the value will
 
 ### Single Sensor Testing
 
-To test with just one sensor (e.g., 0x36 in Zone 1):
+To test with just one sensor (e.g., 0x36 in Plant 1):
 
 ```
 MOISTURE_SENSOR_ADDRESSES=54

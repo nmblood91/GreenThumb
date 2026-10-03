@@ -306,7 +306,7 @@ switch sits past it, so homing can retract clear of the switch instead of restin
 on the upper limit. `position_endstop` is the coordinate at which the switch
 trips — at `980`, it sits 20 mm beyond usable travel. Measure it against your own
 mounting, then set `position_max` to the same value and park 20 mm short of it in
-`homing_override`. X0 stays the left end of usable travel, so zone positions are
+`homing_override`. X0 stays the left end of usable travel, so plant positions are
 unaffected by which end the switch lives at.
 
 `homing_positive_dir: True` is stated explicitly. Klipper would infer it from
@@ -489,7 +489,7 @@ See [POWER_SYSTEM.md](../POWER_SYSTEM.md) for complete busbar and fusing specifi
 
 Four Adafruit STEMMA soil moisture sensors hang off a passive I2C hub on the Pi's
 **Bus 1**. Each needs a unique address; addressing, the `.env` setting and the
-per-zone mapping are in [SENSOR_WIRING.md](../SENSOR_WIRING.md).
+per-plant mapping are in [SENSOR_WIRING.md](../SENSOR_WIRING.md).
 
 ### Pi header pins
 

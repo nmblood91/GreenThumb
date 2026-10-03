@@ -11,7 +11,7 @@ const RANGES = [
   { label: '90d', hours: 24 * 90 },
 ]
 
-const ZONE_COLORS = ['#4ade80', '#60a5fa', '#f472b6', '#fbbf24']
+const PLANT_COLORS = ['#4ade80', '#60a5fa', '#f472b6', '#fbbf24']
 
 export function HistoryPanel() {
   const [hours, setHours] = useState(24)
@@ -52,8 +52,8 @@ export function HistoryPanel() {
     if (!history) return [[]]
     return [
       history.timestamps,
-      ...history.zones.map((zone) =>
-        moisture ? zone.moisture_percent : zone.temperature_c,
+      ...history.plants.map((plant) =>
+        moisture ? plant.moisture_percent : plant.temperature_c,
       ),
     ]
   }, [history, moisture])
@@ -62,9 +62,9 @@ export function HistoryPanel() {
     if (!history) return [{}]
     return [
       {},
-      ...history.zones.map((zone, index) => ({
-        label: zone.name,
-        stroke: ZONE_COLORS[index % ZONE_COLORS.length],
+      ...history.plants.map((plant, index) => ({
+        label: plant.name,
+        stroke: PLANT_COLORS[index % PLANT_COLORS.length],
         width: 2,
         // Gaps are real: they mean the sensor could not be read.
         spanGaps: false,
@@ -74,7 +74,7 @@ export function HistoryPanel() {
     ]
   }, [history, moisture])
 
-  // Fixed for moisture so zones and time ranges stay visually comparable
+  // Fixed for moisture so plants and time ranges stay visually comparable
   // instead of the axis rescaling to whatever happens to be on screen.
   const yRange = moisture ? [0, 100] : undefined
 

@@ -56,7 +56,7 @@ The business model should be framed around selling the full system, not just cod
 ### Host software layer
 - Raspberry Pi running Klipper
 - Python service for automation and hardware orchestration
-- local API for zone control, watering, LEDs, and motion
+- local API for plant control, watering, LEDs, and motion
 - sensor polling and health checks
 - camera integration for time-lapse and monitoring
 
@@ -85,7 +85,7 @@ To turn this into a saleable product, priority should be placed on:
 
 ### Phase 1: prototype-to-product
 Build and validate a single product variant with:
-- 4 plant zones
+- 4 plant positions
 - local app dashboard
 - automated moisture-based watering
 - scheduled lighting

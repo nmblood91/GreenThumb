@@ -27,7 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_readings_addr_time
 CREATE TABLE IF NOT EXISTS waterings (
     id          INTEGER PRIMARY KEY,
     recorded_at INTEGER NOT NULL,
-    zone_id     TEXT NOT NULL,
+    plant_id     TEXT NOT NULL,
     volume_ml   INTEGER NOT NULL,
     trigger     TEXT NOT NULL,
     -- 1 delivered, 0 nothing reached the outlet, NULL not checked. Nullable
@@ -80,6 +80,21 @@ class HistoryStore:
     def _migrate(self) -> None:
         """Add columns that CREATE TABLE IF NOT EXISTS cannot add to an old file."""
         columns = {row["name"] for row in self._db.execute("PRAGMA table_info(waterings)")}
+        if "zone_id" in columns and "plant_id" not in columns:
+            # Zones were renamed to plants. CREATE TABLE IF NOT EXISTS does
+            # nothing to a table that already exists, so without this an
+            # upgraded install inserts plant_id into a table that only has
+            # zone_id and every watering write fails.
+            self._db.execute("ALTER TABLE waterings RENAME COLUMN zone_id TO plant_id")
+            # The values carried the old prefix too, so without this the
+            # existing rows stay keyed to zone_2 and no longer line up with
+            # any current plant -- history that silently stops being charted.
+            self._db.execute(
+                "UPDATE waterings SET plant_id = 'plant_' || substr(plant_id, 6) "
+                "WHERE plant_id LIKE 'zone_%'"
+            )
+            logger.info("Renamed waterings.zone_id to plant_id in the existing history database")
+            columns = {row["name"] for row in self._db.execute("PRAGMA table_info(waterings)")}
         if "delivered" not in columns:
             # Rows written before delivery verification existed are unknown, not
             # failed, and NULL is what the new column defaults to.
@@ -112,7 +127,7 @@ class HistoryStore:
 
     def record_watering(
         self,
-        zone_id: str,
+        plant_id: str,
         volume_ml: int,
         trigger: str,
         delivered: bool | None = None,
@@ -121,11 +136,11 @@ class HistoryStore:
         timestamp = int(time.time()) if at is None else at
         with self._lock:
             self._db.execute(
-                "INSERT INTO waterings (recorded_at, zone_id, volume_ml, trigger, delivered)"
+                "INSERT INTO waterings (recorded_at, plant_id, volume_ml, trigger, delivered)"
                 " VALUES (?, ?, ?, ?, ?)",
                 (
                     timestamp,
-                    zone_id,
+                    plant_id,
                     int(volume_ml),
                     trigger,
                     None if delivered is None else int(delivered),
@@ -189,14 +204,14 @@ class HistoryStore:
         since = end - int(hours * 3600)
         with self._lock:
             rows = self._db.execute(
-                "SELECT recorded_at, zone_id, volume_ml, trigger, delivered FROM waterings"
+                "SELECT recorded_at, plant_id, volume_ml, trigger, delivered FROM waterings"
                 " WHERE recorded_at >= ? ORDER BY recorded_at",
                 (since,),
             ).fetchall()
         return [
             {
                 "t": row["recorded_at"],
-                "zone_id": row["zone_id"],
+                "plant_id": row["plant_id"],
                 "volume_ml": row["volume_ml"],
                 "trigger": row["trigger"],
                 "delivered": None if row["delivered"] is None else bool(row["delivered"]),

@@ -4,21 +4,21 @@
 
 GreenThumb is a smart indoor planter system designed to automate and optimize plant care for home, office, and premium interior environments. The system combines hardware and software to provide automatic watering, lighting control, environmental visibility, and plant management.
 
-**Architectural note:** The software organizes growing spaces into "zones" (physical locations on the frame), each containing a plant (the botanical organism). The zone is the primary organizational unit for configuration, control, and monitoring; the plant name is a property of each zone.
+**Architectural note:** The software organizes the frame into four **plants** — fixed positions, each with its own soil sensor, rail coordinate and LED segment. A plant is the unit of configuration, control and monitoring, and what is growing there is recorded as that plant's name, which the owner can change.
 
 ## Target product
 
-A 4-zone smart indoor planter system using:
+A 4-plant smart indoor planter system using:
 - modified IKEA VITTSJÖ frame
 - melamine lower shelf and glass top shelf
-- 1000 mm 2020 aluminum rail mounted behind the plant zones
+- 1000 mm 2020 aluminum rail mounted behind the plants
 - GT2 belt and pulley carriage motion system
 - NEMA 17 stepper motor with TMC2209 control
 - homing against a mechanical endstop at the motor end of the rail
 - four capacitive soil moisture sensors
 - I2C address configuration to prevent collisions
-- per-zone watering nozzle and peristaltic pump
-- addressable LED strip for zone lighting and ambient modes
+- per-plant watering nozzle and peristaltic pump
+- addressable LED strip for plant lighting and ambient modes
 - Raspberry Pi as host controller
 - Pi camera for monitoring and timelapse, as an optional paid add-on
 - BTT SKR Mini E3 V2 motion board
@@ -26,7 +26,7 @@ A 4-zone smart indoor planter system using:
 ## Functional goals
 
 ### Plant care
-- monitor soil moisture for each plant zone
+- monitor soil moisture for each plant
 - water plants based on target moisture thresholds
 - support custom moisture targets by plant type
 - provide low-moisture alerts
@@ -35,11 +35,11 @@ A 4-zone smart indoor planter system using:
 ### Lighting
 - support ambient lighting modes
 - support static color modes
-- support zone-specific lighting control
+- support per-plant lighting control
 - allow schedules for day/night simulations or plant-specific photoperiods
 
 ### Motion and positioning
-- allow the watering carriage to move to each plant zone
+- allow the watering carriage to move to each plant
 - establish a repeatable zero by homing against a normally-closed endstop, so a
   broken wire or unseated connector fails homing instead of driving the carriage
   into the end of the rail
@@ -64,7 +64,7 @@ A 4-zone smart indoor planter system using:
 - easy setup in under 15 minutes
 - no technical knowledge required for basic operation
 - simple one-tap watering or scheduling
-- clear status display for each plant zone
+- clear status display for each plant
 - visual plant health insight from camera and moisture history
 
 ## Constraints

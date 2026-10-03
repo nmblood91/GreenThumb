@@ -54,7 +54,7 @@ class Klip:
 
 class Leds:
     mode = "schedule"
-    def set_zone_segments(self, s): pass
+    def set_plant_segments(self, s): pass
     def status(self): return {"mode": "schedule"}
 
 
@@ -83,7 +83,7 @@ def build(supply=True):
 settings.water_sensor_enabled = False
 auto, pump, klip, store = build(supply=False)
 klip.water_supply_present = lambda: (_ for _ in ()).throw(AssertionError("queried while disabled"))
-result = auto.water_zone("zone_1")
+result = auto.water_plant("plant_1")
 assert result["status"] == "ok"
 assert result["delivered"] is None, result
 assert pump.calls == [100], "disabled sensor blocked watering"
@@ -93,7 +93,7 @@ settings.water_sensor_enabled = True
 
 # water reaches the outlet
 auto, pump, klip, store = build(supply=True)
-result = auto.water_zone("zone_1")
+result = auto.water_plant("plant_1")
 assert result["status"] == "ok"
 assert result["delivered"] is True, result
 assert store.waterings(1)[0]["delivered"] is True
@@ -101,7 +101,7 @@ print("ok: wet outlet -> delivered True, recorded")
 
 # nothing reaches the outlet: the dose still runs, and is flagged
 auto, pump, klip, store = build(supply=False)
-result = auto.water_zone("zone_1")
+result = auto.water_plant("plant_1")
 assert result["status"] == "ok", "a failed delivery must not read as a refused dose"
 assert result["delivered"] is False, result
 assert pump.calls == [100], "dry outlet stopped the pump; it must not gate"
@@ -111,13 +111,13 @@ print("ok: dry outlet -> dose runs anyway, recorded as delivered False")
 
 # a failed delivery still consumes the cooldown: the pump did run
 auto, pump, klip, store = build(supply=False)
-auto.water_zone("zone_1")
-assert "zone_1" in auto._last_watered, "a dose that ran must start a cooldown"
+auto.water_plant("plant_1")
+assert "plant_1" in auto._last_watered, "a dose that ran must start a cooldown"
 print("ok: a failed delivery still starts the cooldown, because water may have moved")
 
 # unreadable sensor is unknown, not failed
 auto, pump, klip, store = build(supply=None)
-result = auto.water_zone("zone_1")
+result = auto.water_plant("plant_1")
 assert result["delivered"] is None, result
 assert pump.calls == [100]
 assert store.waterings(1)[0]["delivered"] is None
@@ -125,7 +125,7 @@ print("ok: unreadable sensor -> delivered None, distinct from a failure")
 
 # dry at first then wet: the line takes time to fill, so one dry read is not a verdict
 auto, pump, klip, store = build(supply=[False, False, True])
-result = auto.water_zone("zone_1")
+result = auto.water_plant("plant_1")
 assert result["delivered"] is True, result
 assert klip.reads >= 3, klip.reads
 print("ok: an initially dry line that fills reads as delivered")
@@ -140,18 +140,18 @@ print("ok: the control loop is not gated by the outlet sensor")
 # a gantry failure still blocks, and records nothing
 auto, pump, klip, store = build(supply=True)
 klip.move_gantry_absolute = lambda p: {"ok": False, "error": "not homed"}
-result = auto.water_zone("zone_1")
+result = auto.water_plant("plant_1")
 assert result["status"] == "error", result
-assert pump.calls == [], "pumped without reaching the zone"
+assert pump.calls == [], "pumped without reaching the plant"
 assert store.waterings(1) == [], "recorded a watering that never happened"
 print("ok: a gantry failure still blocks the pump and records nothing")
 
 # overview reports the last dose, not the live line state
 auto, pump, klip, store = build(supply=False)
 assert auto.get_overview()["delivery"]["last"] is None
-auto.water_zone("zone_2")
+auto.water_plant("plant_2")
 last = auto.get_overview()["delivery"]["last"]
-assert last["zone_id"] == "zone_2" and last["delivered"] is False, last
+assert last["plant_id"] == "plant_2" and last["delivered"] is False, last
 print("ok: overview reports the last dose's verdict")
 
 print("\nall delivery verification checks passed")

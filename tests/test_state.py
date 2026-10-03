@@ -17,8 +17,8 @@ p = temp_path()
 assert state.load_state(p) == {}, "a missing file reads as empty, not an error"
 print("ok: a missing state file is empty rather than fatal")
 
-assert state.save_state({"zones": [{"zone_id": "zone_1", "name": "Fern"}]}, p)
-assert state.load_state(p)["zones"][0]["name"] == "Fern"
+assert state.save_state({"plants": [{"plant_id": "plant_1", "name": "Fern"}]}, p)
+assert state.load_state(p)["plants"][0]["name"] == "Fern"
 assert state.load_state(p)["schema_version"] == state.SCHEMA_VERSION
 print("ok: state round-trips and is stamped with a schema version")
 

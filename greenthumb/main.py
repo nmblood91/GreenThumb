@@ -160,10 +160,10 @@ async def write_log(payload: dict[str, str] = Body(default_factory=dict)) -> dic
     return {"status": "ok", "message": message}
 
 
-@app.post(f"{settings.api_prefix}/water/{{zone_id}}")
-def water_zone(zone_id: str, volume_ml: int | None = None) -> dict[str, object]:
-    result = automation.water_zone(zone_id, volume_ml)
-    log_event(f"Zone {zone_id} watered with {result.get('volume_ml')} mL")
+@app.post(f"{settings.api_prefix}/water/{{plant_id}}")
+def water_plant(plant_id: str, volume_ml: int | None = None) -> dict[str, object]:
+    result = automation.water_plant(plant_id, volume_ml)
+    log_event(f"Plant {plant_id} watered with {result.get('volume_ml')} mL")
     return result
 
 
@@ -233,69 +233,69 @@ async def set_light_mode(mode: str) -> dict[str, object]:
     return result
 
 
-@app.get(f"{settings.api_prefix}/zones")
-async def list_zones() -> list[dict[str, object]]:
-    zones = automation.zones
+@app.get(f"{settings.api_prefix}/plants")
+async def list_plants() -> list[dict[str, object]]:
+    plants = automation.plants
     return [
         {
-            "zone_id": zone.zone_id,
-            "name": zone.name,
-            "position_mm": zone.position_mm,
-            "light_start_time": zone.light_start_time.isoformat(timespec="minutes"),
-            "light_stop_time": zone.light_stop_time.isoformat(timespec="minutes"),
-            "moisture_target": zone.moisture_target,
-            "watering_volume_ml": zone.watering_volume_ml,
-            "led_start_index": zone.led_start_index,
-            "led_end_index": zone.led_end_index,
+            "plant_id": plant.plant_id,
+            "name": plant.name,
+            "position_mm": plant.position_mm,
+            "light_start_time": plant.light_start_time.isoformat(timespec="minutes"),
+            "light_stop_time": plant.light_stop_time.isoformat(timespec="minutes"),
+            "moisture_target": plant.moisture_target,
+            "watering_volume_ml": plant.watering_volume_ml,
+            "led_start_index": plant.led_start_index,
+            "led_end_index": plant.led_end_index,
         }
-        for zone in zones
+        for plant in plants
     ]
 
 
-@app.post(f"{settings.api_prefix}/zones/{{zone_id}}/plant")
-async def update_zone_plant(zone_id: str, payload: dict[str, str] = Body(default_factory=dict)) -> dict[str, object]:
+@app.post(f"{settings.api_prefix}/plants/{{plant_id}}/name")
+async def update_plant_name(plant_id: str, payload: dict[str, str] = Body(default_factory=dict)) -> dict[str, object]:
     name = str(payload.get("name", "")).strip()
-    result = automation.update_zone_plant(zone_id, name)
-    log_event(f"Zone {zone_id} plant name updated to {name}")
+    result = automation.update_plant_name(plant_id, name)
+    log_event(f"Plant {plant_id} plant name updated to {name}")
     return result
 
 
-@app.post(f"{settings.api_prefix}/zones/{{zone_id}}/lighting")
-async def update_light_schedule(zone_id: str, payload: dict[str, str] = Body(default_factory=dict)) -> dict[str, object]:
+@app.post(f"{settings.api_prefix}/plants/{{plant_id}}/lighting")
+async def update_light_schedule(plant_id: str, payload: dict[str, str] = Body(default_factory=dict)) -> dict[str, object]:
     start_time = time.fromisoformat(str(payload.get("start_time", "08:00")))
     stop_time = time.fromisoformat(str(payload.get("stop_time", "20:00")))
-    result = automation.update_light_schedule(zone_id, start_time, stop_time)
-    log_event(f"Zone {zone_id} light schedule set to {result['light_start_time']} - {result['light_stop_time']}")
+    result = automation.update_light_schedule(plant_id, start_time, stop_time)
+    log_event(f"Plant {plant_id} light schedule set to {result['light_start_time']} - {result['light_stop_time']}")
     return result
 
 
-@app.post(f"{settings.api_prefix}/zones/{{zone_id}}/moisture")
-async def update_moisture_target(zone_id: str, payload: dict[str, float] = Body(default_factory=dict)) -> dict[str, object]:
+@app.post(f"{settings.api_prefix}/plants/{{plant_id}}/moisture")
+async def update_moisture_target(plant_id: str, payload: dict[str, float] = Body(default_factory=dict)) -> dict[str, object]:
     moisture_target = float(payload.get("moisture_target", 45.0))
-    result = automation.update_moisture_target(zone_id, moisture_target)
-    log_event(f"Zone {zone_id} moisture target set to {result['moisture_target']}%")
+    result = automation.update_moisture_target(plant_id, moisture_target)
+    log_event(f"Plant {plant_id} moisture target set to {result['moisture_target']}%")
     return result
 
 
-@app.post(f"{settings.api_prefix}/zones/{{zone_id}}/volume")
-async def update_watering_volume(zone_id: str, payload: dict[str, int] = Body(default_factory=dict)) -> dict[str, object]:
+@app.post(f"{settings.api_prefix}/plants/{{plant_id}}/volume")
+async def update_watering_volume(plant_id: str, payload: dict[str, int] = Body(default_factory=dict)) -> dict[str, object]:
     volume_ml = int(payload.get("watering_volume_ml", 100))
-    result = automation.update_watering_volume(zone_id, volume_ml)
-    log_event(f"Zone {zone_id} watering volume set to {result['watering_volume_ml']} mL")
+    result = automation.update_watering_volume(plant_id, volume_ml)
+    log_event(f"Plant {plant_id} watering volume set to {result['watering_volume_ml']} mL")
     return result
 
 
-@app.post(f"{settings.api_prefix}/zones/{{zone_id}}/position")
-async def set_zone_position(zone_id: str, payload: dict[str, float] = Body(default_factory=dict)) -> dict[str, object]:
+@app.post(f"{settings.api_prefix}/plants/{{plant_id}}/position")
+async def set_plant_position(plant_id: str, payload: dict[str, float] = Body(default_factory=dict)) -> dict[str, object]:
     position_mm = float(payload.get("position_mm", 0.0))
-    result = automation.set_zone_position(zone_id, position_mm)
-    log_event(f"Zone {zone_id} position set to {position_mm} mm")
+    result = automation.set_plant_position(plant_id, position_mm)
+    log_event(f"Plant {plant_id} position set to {position_mm} mm")
     return result
 
 
-@app.post(f"{settings.api_prefix}/zones/{{zone_id}}/move")
-def move_to_zone(zone_id: str) -> dict[str, object]:
-    return log_motion(automation.move_to_zone(zone_id), f"Move gantry to zone {zone_id}")
+@app.post(f"{settings.api_prefix}/plants/{{plant_id}}/move")
+def move_to_plant(plant_id: str) -> dict[str, object]:
+    return log_motion(automation.move_to_plant(plant_id), f"Move gantry to plant {plant_id}")
 
 
 @app.post(f"{settings.api_prefix}/gantry/home")

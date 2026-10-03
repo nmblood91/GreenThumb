@@ -14,8 +14,8 @@ from greenthumb.hardware.lighting import LedController
 from greenthumb.hardware.pump import PumpController
 from greenthumb.hardware.soil_sensors import SoilSensorHub, calibrate, unavailable_sample
 from greenthumb.history import DEFAULT_DB_PATH, HistoryStore
-from greenthumb.models import SensorSample, ZoneSpec, ZoneStatus
-from greenthumb.zones import default_zones, label_for, names_by_address
+from greenthumb.models import SensorSample, PlantSpec, PlantStatus
+from greenthumb.plants import default_plants, label_for, names_by_address
 from greenthumb import state
 
 logger = logging.getLogger(__name__)
@@ -88,9 +88,9 @@ class GreenThumbAutomation:
         self._pump_timer: threading.Timer | None = None
         self._pump_lock_held = False
 
-        self.zones = default_zones()
+        self.plants = default_plants()
         self.apply_default_led_ranges()
-        # Zone edits, dose volumes, rail positions and LED preferences are all
+        # Plant edits, dose volumes, rail positions and LED preferences are all
         # user choices that used to live only in memory, so every restart reset
         # them to the literals above. Restore whatever was saved last.
         self._restore_state()
@@ -100,27 +100,27 @@ class GreenThumbAutomation:
     def _restore_state(self) -> None:
         stored = state.load_state(self._state_path)
 
-        for saved in stored.get("zones", []) or []:
+        for saved in stored.get("plants", []) or []:
             if not isinstance(saved, dict):
                 continue
-            zone = self.get_zone(str(saved.get("zone_id", "")))
-            if zone is None:
-                # A zone id that no longer exists is skipped rather than
-                # treated as an error: the zone set is defined by the code.
+            plant = self.get_plant(str(saved.get("plant_id", "")))
+            if plant is None:
+                # A plant id that no longer exists is skipped rather than
+                # treated as an error: the plant set is defined by the code.
                 continue
             if isinstance(saved.get("name"), str) and saved["name"].strip():
-                zone.name = saved["name"]
+                plant.name = saved["name"]
             for field_name in ("moisture_target", "watering_volume_ml", "position_mm"):
                 value = saved.get(field_name)
                 if isinstance(value, bool) or not isinstance(value, (int, float)):
                     continue
-                setattr(zone, field_name, type(getattr(zone, field_name))(value))
+                setattr(plant, field_name, type(getattr(plant, field_name))(value))
             for field_name in ("light_start_time", "light_stop_time"):
                 text = saved.get(field_name)
                 if not isinstance(text, str):
                     continue
                 try:
-                    setattr(zone, field_name, time.fromisoformat(text))
+                    setattr(plant, field_name, time.fromisoformat(text))
                 except ValueError:
                     logger.warning("Ignoring bad %s %r", field_name, text)
 
@@ -158,17 +158,17 @@ class GreenThumbAutomation:
 
     def _snapshot(self) -> dict:
         return {
-            "zones": [
+            "plants": [
                 {
-                    "zone_id": zone.zone_id,
-                    "name": zone.name,
-                    "moisture_target": zone.moisture_target,
-                    "watering_volume_ml": zone.watering_volume_ml,
-                    "position_mm": zone.position_mm,
-                    "light_start_time": zone.light_start_time.isoformat(timespec="minutes"),
-                    "light_stop_time": zone.light_stop_time.isoformat(timespec="minutes"),
+                    "plant_id": plant.plant_id,
+                    "name": plant.name,
+                    "moisture_target": plant.moisture_target,
+                    "watering_volume_ml": plant.watering_volume_ml,
+                    "position_mm": plant.position_mm,
+                    "light_start_time": plant.light_start_time.isoformat(timespec="minutes"),
+                    "light_stop_time": plant.light_stop_time.isoformat(timespec="minutes"),
                 }
-                for zone in self.zones
+                for plant in self.plants
             ],
             # getattr throughout: a controller that does not expose one of
             # these simply has it left out of the snapshot, rather than a
@@ -198,23 +198,23 @@ class GreenThumbAutomation:
             logger.exception("Could not persist settings")
 
     def apply_default_led_ranges(self) -> None:
-        zone_count = len(self.zones)
-        if zone_count == 0:
+        plant_count = len(self.plants)
+        if plant_count == 0:
             return
 
         total_leds = max(settings.led_count, 1)
-        segment_length = total_leds // zone_count
-        remainder = total_leds % zone_count
+        segment_length = total_leds // plant_count
+        remainder = total_leds % plant_count
 
         start_index = 0
-        for index, zone in enumerate(self.zones):
+        for index, plant in enumerate(self.plants):
             segment_size = segment_length + (1 if index < remainder else 0)
-            zone.led_start_index = start_index
-            zone.led_end_index = start_index + segment_size - 1
+            plant.led_start_index = start_index
+            plant.led_end_index = start_index + segment_size - 1
             start_index += segment_size
 
-        if self.zones:
-            self.zones[-1].led_end_index = total_leds - 1
+        if self.plants:
+            self.plants[-1].led_end_index = total_leds - 1
 
     def usable_travel_mm(self) -> float:
         """Reachable X range, where 0 is the first position the carriage can occupy."""
@@ -222,26 +222,26 @@ class GreenThumbAutomation:
         margin = max(float(settings.gantry_position_margin_mm), 0.0)
         return max(rail_length - (margin * 2), 1.0)
 
-    def set_zone_position(self, zone_id: str, position_mm: float) -> dict[str, object]:
-        zone = next((item for item in self.zones if item.zone_id == zone_id), None)
-        if zone is None:
-            raise ValueError(f"Unknown zone_id: {zone_id}")
+    def set_plant_position(self, plant_id: str, position_mm: float) -> dict[str, object]:
+        plant = next((item for item in self.plants if item.plant_id == plant_id), None)
+        if plant is None:
+            raise ValueError(f"Unknown plant_id: {plant_id}")
 
         bounded_position = max(0.0, min(float(position_mm), self.usable_travel_mm()))
-        zone.position_mm = round(bounded_position, 1)
+        plant.position_mm = round(bounded_position, 1)
         self._persist()
 
         return {
             "status": "ok",
-            "zone_id": zone_id,
-            "position_mm": zone.position_mm,
+            "plant_id": plant_id,
+            "position_mm": plant.position_mm,
         }
 
     @contextmanager
     def _exclusive(self, what: str) -> Iterator[None]:
         # Fail fast rather than queue: a manual command that waited its turn
         # behind a watering cycle would run minutes after the button was pressed,
-        # and a backed-up control loop would water the same zone repeatedly.
+        # and a backed-up control loop would water the same plant repeatedly.
         if not self._hardware_lock.acquire(blocking=False):
             raise HardwareBusyError(f"{what} rejected: hardware is busy")
         try:
@@ -272,14 +272,14 @@ class GreenThumbAutomation:
 
     def _apply_lighting(self) -> None:
         now = datetime.now().time()
-        self.leds.set_zone_segments(
+        self.leds.set_plant_segments(
             [
                 (
-                    zone.led_start_index,
-                    zone.led_end_index,
-                    within_window(now, zone.light_start_time, zone.light_stop_time),
+                    plant.led_start_index,
+                    plant.led_end_index,
+                    within_window(now, plant.light_start_time, plant.light_stop_time),
                 )
-                for zone in self.zones
+                for plant in self.plants
             ]
         )
 
@@ -307,32 +307,32 @@ class GreenThumbAutomation:
         return self.sensor_hub.raw_to_percent(sum(window) / len(window))
 
     def _run_watering_cycle(self) -> None:
-        for zone in self.zones:
-            window = self._history.get(zone.sensor_address)
+        for plant in self.plants:
+            window = self._history.get(plant.sensor_address)
             # Only act on a full window, so neither a single bad reading nor the
             # first minutes after a restart can start the pump.
             if not window or len(window) < window.maxlen:
                 continue
 
-            moisture = self.smoothed_percent(zone.sensor_address)
-            if moisture >= zone.moisture_target:
+            moisture = self.smoothed_percent(plant.sensor_address)
+            if moisture >= plant.moisture_target:
                 continue
-            if not self._cooldown_elapsed(zone.zone_id):
+            if not self._cooldown_elapsed(plant.plant_id):
                 continue
 
             logger.info(
-                "Zone %s at %.1f%% is below target %.1f%%, watering",
-                zone.zone_id,
+                "Plant %s at %.1f%% is below target %.1f%%, watering",
+                plant.plant_id,
                 moisture,
-                zone.moisture_target,
+                plant.moisture_target,
             )
-            self._move_and_water(zone)
+            self._move_and_water(plant)
 
-    def _cooldown_elapsed(self, zone_id: str) -> bool:
+    def _cooldown_elapsed(self, plant_id: str) -> bool:
         # Soil needs time to wick, and the window needs a full cycle to reflect
         # the change. Without this the loop would water every tick until the
         # average caught up, which is how a plant drowns.
-        last = self._last_watered.get(zone_id)
+        last = self._last_watered.get(plant_id)
         if last is None:
             return True
         return datetime.now() - last >= timedelta(minutes=settings.watering_cooldown_minutes)
@@ -433,16 +433,16 @@ class GreenThumbAutomation:
         verdict["delivered"] = False if saw_dry else None
 
     def _move_and_water(
-        self, zone: ZoneSpec, volume_ml: int | None = None, trigger: str = "auto"
+        self, plant: PlantSpec, volume_ml: int | None = None, trigger: str = "auto"
     ) -> dict[str, object]:
-        volume = zone.watering_volume_ml if volume_ml is None else max(0, int(volume_ml))
+        volume = plant.watering_volume_ml if volume_ml is None else max(0, int(volume_ml))
 
-        move = self.klipper.move_gantry_absolute(zone.position_mm)
+        move = self.klipper.move_gantry_absolute(plant.position_mm)
         if not move.get("ok"):
             logger.warning(
-                "Not watering %s: gantry move failed (%s)", zone.zone_id, move.get("error")
+                "Not watering %s: gantry move failed (%s)", plant.plant_id, move.get("error")
             )
-            return {"status": "error", "zone_id": zone.zone_id, "error": move.get("error")}
+            return {"status": "error", "plant_id": plant.plant_id, "error": move.get("error")}
 
         verdict: dict[str, bool | None] = {"delivered": None}
         watcher: threading.Thread | None = None
@@ -470,44 +470,44 @@ class GreenThumbAutomation:
             # dose was logged, and nothing came out the other end.
             logger.warning(
                 "Watered %s with %d mL but no water reached the outlet sensor",
-                zone.zone_id,
+                plant.plant_id,
                 volume,
             )
         elif settings.water_sensor_enabled and delivered is None:
-            logger.warning("Could not verify delivery for %s, sensor unreadable", zone.zone_id)
+            logger.warning("Could not verify delivery for %s, sensor unreadable", plant.plant_id)
 
-        self._last_watered[zone.zone_id] = datetime.now()
+        self._last_watered[plant.plant_id] = datetime.now()
         self._last_delivery = {
-            "zone_id": zone.zone_id,
-            "at": self._last_watered[zone.zone_id].isoformat(timespec="seconds"),
+            "plant_id": plant.plant_id,
+            "at": self._last_watered[plant.plant_id].isoformat(timespec="seconds"),
             "delivered": delivered,
         }
         try:
-            self.history.record_watering(zone.zone_id, volume, trigger, delivered=delivered)
+            self.history.record_watering(plant.plant_id, volume, trigger, delivered=delivered)
         except Exception:
-            logger.exception("Failed to record watering for %s", zone.zone_id)
+            logger.exception("Failed to record watering for %s", plant.plant_id)
         return {
             "status": "ok",
-            "zone_id": zone.zone_id,
+            "plant_id": plant.plant_id,
             "volume_ml": volume,
             "delivered": delivered,
         }
 
-    def _last_watered_iso(self, zone_id: str) -> str | None:
-        last = self._last_watered.get(zone_id)
+    def _last_watered_iso(self, plant_id: str) -> str | None:
+        last = self._last_watered.get(plant_id)
         return last.isoformat(timespec="seconds") if last else None
 
     def get_overview(self) -> dict[str, object]:
-        zone_status = [
-            ZoneStatus(
-                zone_id=spec.zone_id,
+        plant_status = [
+            PlantStatus(
+                plant_id=spec.plant_id,
                 moisture_percent=self.smoothed_percent(spec.sensor_address),
                 target_moisture=spec.moisture_target,
                 pump_active=self.pump.is_running,
                 lighting_mode=self.leds.mode,
-                last_watered=self._last_watered_iso(spec.zone_id),
+                last_watered=self._last_watered_iso(spec.plant_id),
             )
-            for spec in self.zones
+            for spec in self.plants
         ]
 
         return {
@@ -521,27 +521,27 @@ class GreenThumbAutomation:
                 "enabled": settings.water_sensor_enabled,
                 "last": self._last_delivery,
             },
-            "zones": [status.__dict__ for status in zone_status],
+            "plants": [status.__dict__ for status in plant_status],
         }
 
     def get_history(self, hours: float) -> dict[str, object]:
-        """Bucketed history for the chart, zones aligned onto one timestamp axis."""
-        addresses = [zone.sensor_address for zone in self.zones]
+        """Bucketed history for the chart, plants aligned onto one timestamp axis."""
+        addresses = [plant.sensor_address for plant in self.plants]
         bucket, timestamps, series = self.history.series(addresses, hours)
 
         return {
             "hours": hours,
             "bucket_seconds": bucket,
             "timestamps": timestamps,
-            "zones": [
+            "plants": [
                 {
-                    "zone_id": zone.zone_id,
-                    "name": zone.name,
-                    "sensor_address": zone.sensor_address,
-                    "moisture_target": zone.moisture_target,
-                    **series[zone.sensor_address],
+                    "plant_id": plant.plant_id,
+                    "name": plant.name,
+                    "sensor_address": plant.sensor_address,
+                    "moisture_target": plant.moisture_target,
+                    **series[plant.sensor_address],
                 }
-                for zone in self.zones
+                for plant in self.plants
             ],
             "waterings": self.history.waterings(hours),
         }
@@ -557,15 +557,15 @@ class GreenThumbAutomation:
             for address in self.sensor_hub.addresses
         ]
 
-    def water_zone(self, zone_id: str, volume_ml: int | None = None) -> dict[str, object]:
-        zone = self.get_zone(zone_id)
-        if zone is None:
-            raise ValueError(f"Unknown zone_id: {zone_id}")
+    def water_plant(self, plant_id: str, volume_ml: int | None = None) -> dict[str, object]:
+        plant = self.get_plant(plant_id)
+        if plant is None:
+            raise ValueError(f"Unknown plant_id: {plant_id}")
 
         # Moves first, like the automatic path. Pumping without moving waters
         # whatever the nozzle happens to be parked over.
-        with self._exclusive(f"Watering {zone_id}"):
-            return self._move_and_water(zone, volume_ml, trigger="manual")
+        with self._exclusive(f"Watering {plant_id}"):
+            return self._move_and_water(plant, volume_ml, trigger="manual")
 
     def calibrate_moisture(self, endpoint: str, seconds: int = 20) -> dict[str, object]:
         """Measure one calibration endpoint for every sensor.
@@ -582,9 +582,9 @@ class GreenThumbAutomation:
             results = calibrate(self.sensor_hub, endpoint, bounded, state_path=self._state_path)
 
         stored = sum(1 for item in results.values() if item.get("written"))
-        # Carries the zone name as well as the address: the owner of one of
-        # these should be told "Zone 2", not asked to recognise 0x37.
-        names = self.zone_names()
+        # Carries the plant name as well as the address: the owner of one of
+        # these should be told "Plant 2", not asked to recognise 0x37.
+        names = self.plant_names()
         return {
             "status": "ok",
             "endpoint": endpoint,
@@ -594,7 +594,7 @@ class GreenThumbAutomation:
             "sensors": [
                 {
                     "address": f"0x{address:02x}",
-                    "zone": names.get(address),
+                    "plant": names.get(address),
                     "label": label_for(address, names),
                     **{key: value for key, value in outcome.items() if key != "address"},
                 }
@@ -602,13 +602,13 @@ class GreenThumbAutomation:
             ],
         }
 
-    def zone_names(self) -> dict[int, str]:
-        """Address to the name currently shown for that zone."""
-        return {zone.sensor_address: zone.name for zone in self.zones}
+    def plant_names(self) -> dict[int, str]:
+        """Address to the name currently shown for that plant."""
+        return {plant.sensor_address: plant.name for plant in self.plants}
 
     def moisture_calibration(self) -> dict[str, object]:
         stored = state.load_calibration(self._state_path)
-        names = self.zone_names()
+        names = self.plant_names()
         return {
             "status": "ok",
             "default_dry": settings.moisture_raw_dry,
@@ -616,7 +616,7 @@ class GreenThumbAutomation:
             "sensors": [
                 {
                     "address": f"0x{address:02x}",
-                    "zone": names.get(address),
+                    "plant": names.get(address),
                     "label": label_for(address, names),
                     "dry": self.sensor_hub.endpoints_for(address)[0],
                     "wet": self.sensor_hub.endpoints_for(address)[1],
@@ -680,68 +680,68 @@ class GreenThumbAutomation:
         with self._exclusive("Gantry move"):
             return self.klipper.move_gantry_relative(distance_mm)
 
-    def move_to_zone(self, zone_id: str) -> dict[str, object]:
-        zone = next((item for item in self.zones if item.zone_id == zone_id), None)
-        if zone is None:
-            raise ValueError(f"Unknown zone_id: {zone_id}")
+    def move_to_plant(self, plant_id: str) -> dict[str, object]:
+        plant = next((item for item in self.plants if item.plant_id == plant_id), None)
+        if plant is None:
+            raise ValueError(f"Unknown plant_id: {plant_id}")
 
-        with self._exclusive(f"Move to {zone_id}"):
-            return self.klipper.move_gantry_absolute(zone.position_mm)
+        with self._exclusive(f"Move to {plant_id}"):
+            return self.klipper.move_gantry_absolute(plant.position_mm)
 
-    def get_zone(self, zone_id: str) -> ZoneSpec | None:
-        return next((zone for zone in self.zones if zone.zone_id == zone_id), None)
+    def get_plant(self, plant_id: str) -> PlantSpec | None:
+        return next((plant for plant in self.plants if plant.plant_id == plant_id), None)
 
-    def update_zone_plant(self, zone_id: str, name: str) -> dict[str, object]:
-        zone = self.get_zone(zone_id)
-        if zone is None:
-            raise ValueError(f"Unknown zone_id: {zone_id}")
-        zone.name = name.strip() or zone.name
+    def update_plant_name(self, plant_id: str, name: str) -> dict[str, object]:
+        plant = self.get_plant(plant_id)
+        if plant is None:
+            raise ValueError(f"Unknown plant_id: {plant_id}")
+        plant.name = name.strip() or plant.name
         self._persist()
-        return {"status": "ok", "zone_id": zone_id, "name": zone.name}
+        return {"status": "ok", "plant_id": plant_id, "name": plant.name}
 
-    def update_light_schedule(self, zone_id: str, start_time: time, stop_time: time) -> dict[str, object]:
-        zone = self.get_zone(zone_id)
-        if zone is None:
-            raise ValueError(f"Unknown zone_id: {zone_id}")
+    def update_light_schedule(self, plant_id: str, start_time: time, stop_time: time) -> dict[str, object]:
+        plant = self.get_plant(plant_id)
+        if plant is None:
+            raise ValueError(f"Unknown plant_id: {plant_id}")
 
         if not isinstance(start_time, time) or not isinstance(stop_time, time):
             raise ValueError("Light times must be valid Python time objects")
 
-        zone.light_start_time = start_time
-        zone.light_stop_time = stop_time
+        plant.light_start_time = start_time
+        plant.light_stop_time = stop_time
         self._persist()
 
         return {
             "status": "ok",
-            "zone_id": zone_id,
-            "light_start_time": zone.light_start_time.isoformat(timespec="minutes"),
-            "light_stop_time": zone.light_stop_time.isoformat(timespec="minutes"),
+            "plant_id": plant_id,
+            "light_start_time": plant.light_start_time.isoformat(timespec="minutes"),
+            "light_stop_time": plant.light_stop_time.isoformat(timespec="minutes"),
         }
 
-    def update_watering_volume(self, zone_id: str, volume_ml: int) -> dict[str, object]:
-        zone = self.get_zone(zone_id)
-        if zone is None:
-            raise ValueError(f"Unknown zone_id: {zone_id}")
+    def update_watering_volume(self, plant_id: str, volume_ml: int) -> dict[str, object]:
+        plant = self.get_plant(plant_id)
+        if plant is None:
+            raise ValueError(f"Unknown plant_id: {plant_id}")
 
-        zone.watering_volume_ml = max(0, int(volume_ml))
+        plant.watering_volume_ml = max(0, int(volume_ml))
         self._persist()
         return {
             "status": "ok",
-            "zone_id": zone_id,
-            "watering_volume_ml": zone.watering_volume_ml,
+            "plant_id": plant_id,
+            "watering_volume_ml": plant.watering_volume_ml,
         }
 
-    def update_moisture_target(self, zone_id: str, moisture_target: float) -> dict[str, object]:
-        zone = self.get_zone(zone_id)
-        if zone is None:
-            raise ValueError(f"Unknown zone_id: {zone_id}")
+    def update_moisture_target(self, plant_id: str, moisture_target: float) -> dict[str, object]:
+        plant = self.get_plant(plant_id)
+        if plant is None:
+            raise ValueError(f"Unknown plant_id: {plant_id}")
 
         clamped_target = max(0.0, min(float(moisture_target), 100.0))
-        zone.moisture_target = round(clamped_target, 1)
+        plant.moisture_target = round(clamped_target, 1)
         self._persist()
 
         return {
             "status": "ok",
-            "zone_id": zone_id,
-            "moisture_target": zone.moisture_target,
+            "plant_id": plant_id,
+            "moisture_target": plant.moisture_target,
         }

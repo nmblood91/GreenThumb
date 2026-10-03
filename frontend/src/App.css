@@ -337,7 +337,7 @@ button:disabled.working {
   margin-top: 28px;
 }
 
-.zone-actions-grid {
+.plant-actions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
@@ -351,14 +351,14 @@ button:disabled.working {
   margin-top: 16px;
 }
 
-.zone-card {
+.plant-card {
   background: rgba(14, 24, 18, 0.95);
   border: 1px solid #2a4737;
   border-radius: 12px;
   padding: 16px;
 }
 
-.zone-header {
+.plant-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -373,12 +373,12 @@ button:disabled.working {
   font-weight: 600;
 }
 
-.zone-header:hover {
+.plant-header:hover {
   background: transparent;
   transform: none;
 }
 
-.zone-chevron {
+.plant-chevron {
   font-size: 1.5rem;
   line-height: 1;
   color: #d9efe0;
@@ -490,7 +490,7 @@ option {
   line-height: 1.4;
 }
 
-.zone-actions-row {
+.plant-actions-row {
   margin-top: 16px;
 
   button {

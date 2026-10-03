@@ -245,8 +245,8 @@ export function GeneralPanel({ overview }) {
         {delivery?.enabled && delivery.last && delivery.last.delivered !== true && (
           <p className="field-hint warning">
             {delivery.last.delivered === false
-              ? `No water reached the outlet on the last dose (${delivery.last.zone_id}, ${delivery.last.at}). Check the reservoir, then the line for a clog or an airlock.`
-              : `Could not verify the last dose (${delivery.last.zone_id}) — the outlet sensor did not respond.`}
+              ? `No water reached the outlet on the last dose (${delivery.last.plant_id}, ${delivery.last.at}). Check the reservoir, then the line for a clog or an airlock.`
+              : `Could not verify the last dose (${delivery.last.plant_id}) — the outlet sensor did not respond.`}
           </p>
         )}
 

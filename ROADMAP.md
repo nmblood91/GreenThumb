@@ -7,14 +7,14 @@
 - validate peristaltic pump flow and watering accuracy
 - test LED lighting and effect modes
 - build the controller stack around Raspberry Pi + Klipper + Python service
-- validate automation on four plant zones
+- validate automation on four plants
 
 ## Phase 2: Software maturity
 - implement real sensor reading drivers
-- add persistent plant profiles per zone
+- add persistent profiles per plant
 - add watering schedules and thresholds
 - track moisture trend history
-- build a dashboard with each plant zone status
+- build a dashboard with each plant's status
 - add camera capturing and timelapse generation
 - implement alerts and diagnostics
 

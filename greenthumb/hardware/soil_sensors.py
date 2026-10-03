@@ -10,7 +10,7 @@ import smbus2
 
 from greenthumb import state
 from greenthumb.models import SensorSample
-from greenthumb.zones import label_for
+from greenthumb.plants import label_for
 
 logger = logging.getLogger(__name__)
 
@@ -278,7 +278,7 @@ def _soak(hub: SoilSensorHub, seconds: int, interval: float) -> int:
 
 # Below this, a measured wet point is not plausibly wetter than the dry point --
 # almost always a prong that never reached the water, or a sensor still sitting
-# in air. Writing it would make the zone read 100% permanently.
+# in air. Writing it would make the plant read 100% permanently.
 MIN_CALIBRATION_SPAN = 50
 
 # Quality thresholds for a sampling run, both relative to the reading itself.

@@ -4,7 +4,7 @@ GreenThumb is a Python-based software foundation for a smart indoor planter / gr
 - a motion system driven by a BTT SKR Mini E3 V2 and Klipper
 - a Raspberry Pi host running Klipper
 - four capacitive soil sensors on an I2C hub
-- per-zone watering and lighting control
+- per-plant watering and lighting control
 - a Pi camera pipeline for monitoring and timelapse capture
 
 This repository is intentionally structured as a product-ready foundation for a future commercial offering, not just a one-off prototype.
@@ -17,7 +17,7 @@ This repository is intentionally structured as a product-ready foundation for a 
 |---|---|
 | [deploy/README.md](deploy/README.md) | Flashing the SKR, Pi setup, and the wiring for every subsystem — endstop, pump, water level sensor, soil sensors, LED strip — plus how to route the harness |
 | [POWER_SYSTEM.md](POWER_SYSTEM.md) | 12V busbar, fuse sizing and why each rating was chosen, power budget |
-| [SENSOR_WIRING.md](SENSOR_WIRING.md) | Soil sensor I2C addressing and the per-zone address mapping |
+| [SENSOR_WIRING.md](SENSOR_WIRING.md) | Soil sensor I2C addressing and the per-plant address mapping |
 | [BOM.md](BOM.md) | Parts list |
 
 **How it behaves**
@@ -38,7 +38,7 @@ The system is a modular smart planter based on a modified IKEA VITTSJÖ frame wi
 - 1000 mm 2020 extrusion rail mounted to the rear uprights
 - GT2 belt + pulley drive powered by a NEMA 17 stepper
 - homing against a mechanical endstop at the motor end of the rail
-- addressable LED strip for lighting effects and per-plant zones
+- addressable LED strip for lighting effects and per-plant segments
 - 12V peristaltic pump for controlled watering
 
 ## Software architecture
@@ -46,7 +46,7 @@ The system is a modular smart planter based on a modified IKEA VITTSJÖ frame wi
 This project lays down the initial application stack:
 
 - `greenthumb/config.py` – configuration and environment-driven runtime settings
-- `greenthumb/models.py` – zone, sensor, and status dataclasses
+- `greenthumb/models.py` – plant, sensor, and status dataclasses
 - `greenthumb/hardware/` – hardware adapters for Klipper, sensors, LEDs, and pump
 - `greenthumb/services/automation.py` – orchestration layer for automated watering and lighting
 - `greenthumb/main.py` – FastAPI service exposing a basic API
@@ -68,7 +68,7 @@ The app exposes a small initial API surface:
 - `GET /api/v1/overview`
 - `GET /api/v1/sensors`
 - `GET /api/v1/history?hours=24`
-- `POST /api/v1/water/{zone_id}` (optional `?volume_ml=` overrides the zone setting)
+- `POST /api/v1/water/{plant_id}` (optional `?volume_ml=` overrides the plant setting)
 - `POST /api/v1/lights/{mode}`
 - `POST /api/v1/motion/home/{axis}`
 
@@ -109,7 +109,7 @@ This repository is set up to become a real product in stages:
    - resilient error handling and calibration profiles
 
 2. User dashboards
-   - web dashboard with plant health, schedule editor, and zone controls
+   - web dashboard with plant health, schedule editor, and plant controls
    - user authentication and access controls
 
 3. Automation rules
@@ -128,13 +128,13 @@ This repository is set up to become a real product in stages:
 ## How watering decisions are made
 
 A background loop polls every sensor once a minute, averages the last ten
-readings per zone, and waters a zone whose average falls below its target.
+readings per plant, and waters a plant whose average falls below its target.
 [HOW_WATERING_WORKS.md](HOW_WATERING_WORKS.md) explains the rules and the
 reasoning in plain language, for people who won't be reading the code.
 
 ## Settings persistence
 
-Anything changed at runtime — zone targets, dose volumes, rail positions, plant
+Anything changed at runtime — plant targets, dose volumes, rail positions, plant
 names, per-sensor moisture calibration and LED preferences — is written to
 `data/state.json` and reloaded at startup. The file is gitignored, so it
 survives `git pull`, and writes are atomic so a power cut cannot truncate it.
@@ -142,13 +142,13 @@ survives `git pull`, and writes are atomic so a power cut cannot truncate it.
 A missing, corrupt or hand-edited file falls back to built-in defaults per
 field rather than refusing to start: the appliance has to boot.
 
-Zone definitions themselves (how many, which I2C address) still live in code —
+Plant definitions themselves (how many, which I2C address) still live in code —
 only the user-editable fields are stored.
 
 ## History
 
 Every reading is written to SQLite (`data/greenthumb.db`) once a minute, along
-with each watering. The **History** tab charts moisture or temperature per zone
+with each watering. The **History** tab charts moisture or temperature per plant
 over 6 hours to 90 days, with dashed marks where waterings happened — which is
 what makes it possible to tell whether a moisture target and dose are actually
 right for a plant, rather than guessing.

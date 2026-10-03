@@ -52,7 +52,7 @@ class FakeLeds:
     def __init__(self):
         self.segments = None
 
-    def set_zone_segments(self, segments):
+    def set_plant_segments(self, segments):
         self.segments = segments
 
     def status(self):
@@ -97,7 +97,7 @@ assert len(pump.calls) == 1, f"cooldown did not hold: {pump.calls}"
 print("ok: cooldown suppresses repeat watering")
 
 # 3. cooldown expiry allows watering again
-auto._last_watered["zone_1"] = datetime.now() - timedelta(
+auto._last_watered["plant_1"] = datetime.now() - timedelta(
     minutes=settings.watering_cooldown_minutes + 1
 )
 auto.tick()
@@ -127,7 +127,7 @@ print(f"ok: rolling average smooths a step change -> {avg}%")
 auto, pump = build(settings.moisture_raw_dry)
 auto._hardware_lock.acquire()
 try:
-    auto.water_zone("zone_1")
+    auto.water_plant("plant_1")
 except HardwareBusyError as exc:
     print(f"ok: manual command rejected while busy -> {exc}")
 else:
@@ -159,21 +159,21 @@ print("ok: failing tick is contained and releases the lock")
 
 # --- manual watering goes to the plant first ---
 auto, pump = build(settings.moisture_raw_dry)
-zone1 = auto.get_zone("zone_1")
-result = auto.water_zone("zone_1")
-assert auto.klipper.moves == [zone1.position_mm], auto.klipper.moves
-assert pump.calls == [zone1.watering_volume_ml], pump.calls
-assert result["volume_ml"] == zone1.watering_volume_ml
-print("ok: manual watering moves to the zone and uses its own volume")
+plant1 = auto.get_plant("plant_1")
+result = auto.water_plant("plant_1")
+assert auto.klipper.moves == [plant1.position_mm], auto.klipper.moves
+assert pump.calls == [plant1.watering_volume_ml], pump.calls
+assert result["volume_ml"] == plant1.watering_volume_ml
+print("ok: manual watering moves to the plant and uses its own volume")
 
-result = auto.water_zone("zone_2", volume_ml=25)
+result = auto.water_plant("plant_2", volume_ml=25)
 assert pump.calls[-1] == 25, pump.calls
-print("ok: an explicit volume overrides the zone default")
+print("ok: an explicit volume overrides the plant default")
 
 try:
-    auto.water_zone("zone_9")
+    auto.water_plant("plant_9")
 except ValueError as exc:
-    print(f"ok: unknown zone rejected -> {exc}")
+    print(f"ok: unknown plant rejected -> {exc}")
 else:
     raise AssertionError("expected ValueError")
 
@@ -184,7 +184,7 @@ class RefusingKlipper(FakeKlipper):
 
 
 auto2 = GreenThumbAutomation(FakeHub(settings.moisture_raw_dry), RefusingKlipper(), FakePump(), FakeLeds(), history=temp_store(), state_path=temp_state())
-result = auto2.water_zone("zone_1")
+result = auto2.water_plant("plant_1")
 assert result["status"] == "error", result
 assert auto2.pump.calls == [], "pumped despite a failed move"
 print("ok: a failed move blocks the pump instead of watering the wrong spot")
@@ -242,7 +242,7 @@ print("\nall checks passed")
 
 
 # --- settings survive a restart ---------------------------------------------
-# The bug this guards: zones were rebuilt from hardcoded literals on every
+# The bug this guards: plants were rebuilt from hardcoded literals on every
 # startup, so anything changed through the UI was lost on the next restart.
 
 shared = temp_state()
@@ -256,22 +256,22 @@ def fresh(state_file):
 
 
 before = fresh(shared)
-default_target = before.get_zone("zone_1").moisture_target
-before.update_moisture_target("zone_1", 61)
-before.update_watering_volume("zone_2", 250)
-before.set_zone_position("zone_3", 500)
-before.update_zone_plant("zone_4", "Monstera")
+default_target = before.get_plant("plant_1").moisture_target
+before.update_moisture_target("plant_1", 61)
+before.update_watering_volume("plant_2", 250)
+before.set_plant_position("plant_3", 500)
+before.update_plant_name("plant_4", "Monstera")
 
 after = fresh(shared)
-assert after.get_zone("zone_1").moisture_target == 61, after.get_zone("zone_1").moisture_target
-assert after.get_zone("zone_2").watering_volume_ml == 250
-assert after.get_zone("zone_3").position_mm == 500
-assert after.get_zone("zone_4").name == "Monstera"
+assert after.get_plant("plant_1").moisture_target == 61, after.get_plant("plant_1").moisture_target
+assert after.get_plant("plant_2").watering_volume_ml == 250
+assert after.get_plant("plant_3").position_mm == 500
+assert after.get_plant("plant_4").name == "Monstera"
 assert default_target != 61, "test would pass vacuously if 61 were the default"
-print("ok: zone edits survive a restart")
+print("ok: plant edits survive a restart")
 
 untouched = fresh(temp_state())
-assert untouched.get_zone("zone_1").moisture_target == default_target
+assert untouched.get_plant("plant_1").moisture_target == default_target
 print("ok: a fresh install still gets the built-in defaults")
 
 # A corrupt settings file must not stop the service booting.
@@ -279,5 +279,5 @@ bad = temp_state()
 bad.parent.mkdir(parents=True, exist_ok=True)
 bad.write_text("{truncated", encoding="utf-8")
 recovered = fresh(bad)
-assert recovered.get_zone("zone_1").moisture_target == default_target
+assert recovered.get_plant("plant_1").moisture_target == default_target
 print("ok: a corrupt settings file falls back to defaults instead of failing to start")

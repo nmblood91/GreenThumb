@@ -64,7 +64,7 @@ assert series[0x36]["moisture_percent"] == [50.0], series[0x36]
 print("ok: readings inside a bucket are averaged")
 
 
-# --- zones share one timestamp axis, gaps become null ---
+# --- plants share one timestamp axis, gaps become null ---
 db = store()
 db.record_readings([sample(0x36, percent=40.0)], at=base)
 db.record_readings([sample(0x37, percent=60.0)], at=base + 120)
@@ -74,7 +74,7 @@ assert len(series[0x36]["moisture_percent"]) == len(stamps)
 assert len(series[0x37]["moisture_percent"]) == len(stamps)
 assert series[0x36]["moisture_percent"] == [40.0, None], series[0x36]
 assert series[0x37]["moisture_percent"] == [None, 60.0], series[0x37]
-print("ok: zones align to one axis with null where a zone has no reading")
+print("ok: plants align to one axis with null where a plant has no reading")
 
 
 # --- an address with no data at all still returns a full-length series ---
@@ -94,11 +94,11 @@ print("ok: readings outside the requested window are excluded")
 
 # --- waterings, in and out of window ---
 db = store()
-db.record_watering("zone_1", 100, "auto", at=base - 30 * 60)
-db.record_watering("zone_2", 50, "manual", at=base - 10 * HOUR)
+db.record_watering("plant_1", 100, "auto", at=base - 30 * 60)
+db.record_watering("plant_2", 50, "manual", at=base - 10 * HOUR)
 marks = db.waterings(hours=2, now=base)
 assert len(marks) == 1, marks
-assert marks[0]["zone_id"] == "zone_1" and marks[0]["trigger"] == "auto"
+assert marks[0]["plant_id"] == "plant_1" and marks[0]["trigger"] == "auto"
 assert marks[0]["volume_ml"] == 100
 assert len(db.waterings(hours=24, now=base)) == 2
 print("ok: waterings are returned with trigger and filtered by window")
@@ -108,7 +108,7 @@ print("ok: waterings are returned with trigger and filtered by window")
 db = store()
 db.record_readings([sample(0x36)], at=base - 100 * 24 * HOUR)
 db.record_readings([sample(0x36)], at=base - 10 * 24 * HOUR)
-db.record_watering("zone_1", 100, "auto", at=base - 100 * 24 * HOUR)
+db.record_watering("plant_1", 100, "auto", at=base - 100 * 24 * HOUR)
 deleted = db.prune(retention_days=90, now=base)
 assert deleted == 2, f"expected the old reading and watering, deleted {deleted}"
 _, stamps, _ = db.series([0x36], hours=24 * 90, now=base)

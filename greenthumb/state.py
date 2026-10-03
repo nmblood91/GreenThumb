@@ -1,6 +1,6 @@
 """Durable storage for the settings a user changes at runtime.
 
-Zone targets, dose volumes, rail positions, plant names, per-sensor moisture
+Plant targets, dose volumes, rail positions, plant names, per-sensor moisture
 calibration and LED preferences were all held in memory only, so every API
 restart reverted them to the literals in `Automation.__init__`. This keeps them
 in one JSON file beside the history database.

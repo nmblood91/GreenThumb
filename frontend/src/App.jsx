@@ -4,7 +4,7 @@ import { TabBar } from './components/TabBar'
 import { GantryPanel } from './components/GantryPanel'
 import { GeneralPanel } from './components/GeneralPanel'
 import { CalibrationPanel } from './components/CalibrationPanel'
-import { ZonesPanel } from './components/PlantsPanel'
+import { PlantsPanel } from './components/PlantsPanel'
 import { LogsPanel } from './components/LogsPanel'
 import { HistoryPanel } from './components/HistoryPanel'
 import './App.css'
@@ -29,7 +29,7 @@ const fetchJson = async (path, options = {}) => {
 function App() {
   const [activeTab, setActiveTab] = useState('gantry')
   const [overview, setOverview] = useState(null)
-  const [zones, setZones] = useState([])
+  const [plants, setPlants] = useState([])
   const [logs, setLogs] = useState([])
   const [status, setStatus] = useState('Loading GreenThumb...')
 
@@ -40,14 +40,14 @@ function App() {
 
   const loadDashboard = useCallback(async () => {
     try {
-      const [overviewData, zonesData, logsData] = await Promise.all([
+      const [overviewData, plantsData, logsData] = await Promise.all([
         fetchJson('/overview'),
-        fetchJson('/zones'),
+        fetchJson('/plants'),
         fetchJson('/logs?lines=20'),
       ])
 
       setOverview(overviewData)
-      setZones(zonesData)
+      setPlants(plantsData)
       setLogs(logsData)
       if (logsData?.length) {
         setStatus(logsData[0])
@@ -109,65 +109,65 @@ function App() {
     }
   }
 
-  const moveToZone = async (zoneId) => {
+  const moveToPlant = async (plantId) => {
     try {
-      const zone = zones.find((item) => item.zone_id === zoneId)
-      setStatus(`Moving gantry to ${zone?.name || zoneId}...`)
-      const result = await fetchJson(`/zones/${zoneId}/move`, { method: 'POST' })
-      setStatus(`Move to ${zone?.name || zoneId}: ${describeResult(result)}`)
+      const plant = plants.find((item) => item.plant_id === plantId)
+      setStatus(`Moving gantry to ${plant?.name || plantId}...`)
+      const result = await fetchJson(`/plants/${plantId}/move`, { method: 'POST' })
+      setStatus(`Move to ${plant?.name || plantId}: ${describeResult(result)}`)
       await loadDashboard()
     } catch (error) {
-      setStatus(`Move to zone failed: ${error.message}`)
+      setStatus(`Move to plant failed: ${error.message}`)
     }
   }
 
-  const saveZone = async (zone) => {
+  const savePlant = async (plant) => {
     try {
-      setStatus(`Saving ${zone.name}...`)
+      setStatus(`Saving ${plant.name}...`)
 
-      await fetchJson(`/zones/${zone.zone_id}/plant`, {
+      await fetchJson(`/plants/${plant.plant_id}/name`, {
         method: 'POST',
-        body: JSON.stringify({ name: zone.name }),
+        body: JSON.stringify({ name: plant.name }),
       })
 
-      await fetchJson(`/zones/${zone.zone_id}/lighting`, {
+      await fetchJson(`/plants/${plant.plant_id}/lighting`, {
         method: 'POST',
         body: JSON.stringify({
-          start_time: zone.light_start_time,
-          stop_time: zone.light_stop_time,
+          start_time: plant.light_start_time,
+          stop_time: plant.light_stop_time,
         }),
       })
 
-      await fetchJson(`/zones/${zone.zone_id}/moisture`, {
+      await fetchJson(`/plants/${plant.plant_id}/moisture`, {
         method: 'POST',
-        body: JSON.stringify({ moisture_target: Number(zone.moisture_target) }),
+        body: JSON.stringify({ moisture_target: Number(plant.moisture_target) }),
       })
 
-      await fetchJson(`/zones/${zone.zone_id}/volume`, {
+      await fetchJson(`/plants/${plant.plant_id}/volume`, {
         method: 'POST',
-        body: JSON.stringify({ watering_volume_ml: Number(zone.watering_volume_ml) }),
+        body: JSON.stringify({ watering_volume_ml: Number(plant.watering_volume_ml) }),
       })
 
-      await fetchJson(`/zones/${zone.zone_id}/position`, {
+      await fetchJson(`/plants/${plant.plant_id}/position`, {
         method: 'POST',
-        body: JSON.stringify({ position_mm: Number(zone.position_mm) }),
+        body: JSON.stringify({ position_mm: Number(plant.position_mm) }),
       })
 
-      setStatus(`Saved ${zone.name}.`)
+      setStatus(`Saved ${plant.name}.`)
       await loadDashboard()
     } catch (error) {
       setStatus(`Save failed: ${error.message}`)
     }
   }
 
-  const waterZone = async (zoneId) => {
+  const waterPlant = async (plantId) => {
     try {
-      const zone = zones.find((item) => item.zone_id === zoneId)
-      const label = zone?.name || zoneId
+      const plant = plants.find((item) => item.plant_id === plantId)
+      const label = plant?.name || plantId
       // The request does not return until the gantry has moved and the dose has
       // finished, which is over a minute, so say so rather than looking hung.
       setStatus(`Watering ${label}, this takes a minute...`)
-      const result = await fetchJson(`/water/${zoneId}`, { method: 'POST' })
+      const result = await fetchJson(`/water/${plantId}`, { method: 'POST' })
       // delivered is null when no outlet sensor is fitted, so only false is a
       // failure — the pump ran and nothing came out the other end.
       const delivery =
@@ -193,11 +193,11 @@ function App() {
 
       {activeTab === 'gantry' && (
         <GantryPanel
-          zones={zones}
+          plants={plants}
           gantryPosition={gantryPosition}
           onHome={homeGantry}
           onMove={moveGantry}
-          onMoveToZone={moveToZone}
+          onMoveToPlant={moveToPlant}
         />
       )}
 
@@ -211,7 +211,7 @@ function App() {
       )}
 
       {activeTab === 'plants' && (
-        <ZonesPanel zones={zones} onSave={saveZone} onWater={waterZone} />
+        <PlantsPanel plants={plants} onSave={savePlant} onWater={waterPlant} />
       )}
       {/* Fetches its own data so changing the range does not reload the dashboard. */}
       {activeTab === 'history' && <HistoryPanel />}

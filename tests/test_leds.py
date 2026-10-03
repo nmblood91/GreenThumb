@@ -115,23 +115,23 @@ led._render()
 assert strip.frames[-1] != first, "rainbow did not advance"
 print(f"ok: rainbow spans {len(set(first))} distinct colours and animates")
 
-# schedule mode lights only the zones that are on
+# schedule mode lights only the plants that are on
 led, strip = controller(count=60)
 led.set_mode("schedule")
 led.set_static_color((0, 255, 0))
 led.set_mode("schedule")  # set_static_color flips to manual, put it back
 led.set_brightness(100)
-led.set_zone_segments([(0, 4, True), (5, 9, False), (10, 14, True), (15, 19, False)])
+led.set_plant_segments([(0, 4, True), (5, 9, False), (10, 14, True), (15, 19, False)])
 led._render()
 frame = strip.frames[-1]
 assert frame[0:5] == [(0, 255, 0)] * 5, frame[0:5]
 assert frame[5:10] == [(0, 0, 0)] * 5, frame[5:10]
 assert frame[10:15] == [(0, 255, 0)] * 5
 assert frame[15:20] == [(0, 0, 0)] * 5
-print("ok: schedule lights only the zones inside their window")
+print("ok: schedule lights only the plants inside their window")
 
 # segments beyond the strip must not blow up or wrap
-led.set_zone_segments([(18, 99, True)])
+led.set_plant_segments([(18, 99, True)])
 led._render()
 assert len(strip.frames[-1]) == 60
 print("ok: an over-long segment is clipped to the strip")
