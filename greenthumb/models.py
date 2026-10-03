@@ -39,3 +39,8 @@ class PlantStatus:
     pump_active: bool = False
     lighting_mode: str = "ambient"
     last_watered: str | None = None
+    # How many readings are in the averaging window. Below the full window the
+    # loop will not water yet, so the UI can say "still gathering" rather than
+    # showing a percentage that is not yet trusted to act on.
+    sample_count: int = 0
+    window_size: int = 0

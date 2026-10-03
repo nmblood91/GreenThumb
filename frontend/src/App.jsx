@@ -222,7 +222,7 @@ function App() {
       )}
 
       {activeTab === 'plants' && (
-        <PlantsPanel plants={plants} onSave={savePlant} />
+        <PlantsPanel plants={plants} onSave={savePlant} status={overview?.plants} />
       )}
 
       {activeTab === 'sensors' && (

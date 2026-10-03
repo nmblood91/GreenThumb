@@ -9,7 +9,38 @@ const draftFrom = (plant) => ({
   position_mm: plant.position_mm ?? 0,
 })
 
-export function PlantsPanel({ plants, onSave }) {
+// -1 is "no reading", not dry. The backend uses it for a probe that is
+// unplugged or unreadable, and showing that as 0% would read as "bone dry" and
+// invite watering a plant whose sensor simply fell out.
+const describeMoisture = (status) => {
+  if (!status) return { text: '—', hint: 'no data yet' }
+  if (status.moisture_percent == null || status.moisture_percent < 0) {
+    return { text: 'no reading', hint: 'probe unplugged or unreadable', warn: true }
+  }
+  const text = `${status.moisture_percent.toFixed(0)}%`
+  // Below a full window the loop will not water, so say so rather than show a
+  // number that looks actionable.
+  if (status.window_size && status.sample_count < status.window_size) {
+    return {
+      text,
+      hint: `gathering history, ${status.sample_count}/${status.window_size}`,
+    }
+  }
+  const target = status.target_moisture
+  if (target != null) {
+    return {
+      text,
+      hint:
+        status.moisture_percent < target
+          ? `below target of ${target}%`
+          : `target ${target}%`,
+      dry: status.moisture_percent < target,
+    }
+  }
+  return { text, hint: '' }
+}
+
+export function PlantsPanel({ plants, onSave, status }) {
   const [drafts, setDrafts] = useState({})
   const [expandedPlantIds, setExpandedPlantIds] = useState([])
 
@@ -47,6 +78,9 @@ export function PlantsPanel({ plants, onSave }) {
         {plants.map((plant) => {
           const draft = drafts[plant.plant_id] || draftFrom(plant)
           const isExpanded = expandedPlantIds.includes(plant.plant_id)
+          const reading = describeMoisture(
+            status?.find((item) => item.plant_id === plant.plant_id),
+          )
 
           return (
             <div key={plant.plant_id} className="plant-card">
@@ -57,6 +91,12 @@ export function PlantsPanel({ plants, onSave }) {
                 aria-expanded={isExpanded}
               >
                 <span>{plant.name}</span>
+                <span className="plant-reading">
+                  <strong className={reading.warn ? 'warn' : reading.dry ? 'dry' : undefined}>
+                    {reading.text}
+                  </strong>
+                  {reading.hint && <small>{reading.hint}</small>}
+                </span>
                 <span className="plant-chevron">{isExpanded ? '−' : '+'}</span>
               </button>
 

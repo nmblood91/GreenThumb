@@ -540,6 +540,8 @@ class GreenThumbAutomation:
                 pump_active=self.pump.is_running,
                 lighting_mode=self.leds.mode,
                 last_watered=self._last_watered_iso(spec.plant_id),
+                sample_count=len(self._history.get(spec.sensor_address) or ()),
+                window_size=settings.moisture_window_size,
             )
             for spec in self.plants
         ]

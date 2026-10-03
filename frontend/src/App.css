@@ -635,3 +635,36 @@ input[type='color'] {
 .chart .u-legend td {
   padding: 2px 8px;
 }
+
+/* The live reading in a plant card's header. Sits between the name and the
+   chevron, so the number is visible without expanding the card -- for a
+   planter it is the one thing worth seeing at a glance. */
+.plant-reading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: auto;
+  margin-right: 12px;
+  line-height: 1.2;
+}
+
+.plant-reading strong {
+  font-size: 1.05rem;
+  color: #dfeee3;
+}
+
+/* Below target: the plant wants water. Amber rather than red, which is
+   reserved for a probe that is not reporting at all. */
+.plant-reading strong.dry {
+  color: #ffd27a;
+}
+
+.plant-reading strong.warn {
+  color: #ffb4a2;
+  font-size: 0.95rem;
+}
+
+.plant-reading small {
+  color: #8fae9b;
+  font-size: 0.75rem;
+}
