@@ -201,9 +201,15 @@ EOF
 sudo cp /tmp/klipper.service /etc/systemd/system/klipper.service
 sudo systemctl daemon-reload
 
-# Start Klipper and verify it connects
+# Start Klipper and verify it connects.
+#
+# enable then restart, not `enable --now`. On an already-running unit `--now`
+# is a no-op, so re-running the installer left Klipper on the printer.cfg it
+# started with even though the file had just been regenerated -- which is the
+# opposite of what re-running it is documented to do.
 echo "Starting Klipper..."
-sudo systemctl enable --now klipper
+sudo systemctl enable klipper
+sudo systemctl restart klipper
 sleep 3
 
 # Check if Klipper connected to MCU
@@ -220,7 +226,10 @@ fi
 
 sudo cp /opt/greenthumb/deploy/systemd/greenthumb-api.service /etc/systemd/system/greenthumb-api.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now greenthumb-api.service
+# Same as Klipper above: `--now` would not restart an already-running service,
+# so a pull that brought new Python kept being served by the old process.
+sudo systemctl enable greenthumb-api.service
+sudo systemctl restart greenthumb-api.service
 
 sudo cp /opt/greenthumb/deploy/nginx/greenthumb.conf /etc/nginx/sites-available/greenthumb.conf
 sudo ln -sf /etc/nginx/sites-available/greenthumb.conf /etc/nginx/sites-enabled/greenthumb.conf

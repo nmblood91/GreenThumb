@@ -8,7 +8,7 @@ const SAMPLE_SECONDS = 20
 
 const INSTRUCTIONS = {
   dry: 'All sensors should be out of any soil, clean and dry, sitting in open air.',
-  wet: 'The prongs should be in water — only the prongs, up to the marked line.',
+  wet: 'The sensors should be in water — only up to the marked line.',
 }
 
 export function CalibrationPanel() {
@@ -54,10 +54,20 @@ export function CalibrationPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ seconds: SAMPLE_SECONDS }),
       })
-      const data = await response.json()
+      const data = await response.json().catch(() => ({}))
       if (!response.ok) {
-        // 409 when a watering cycle holds the hardware, 400 for a bad endpoint.
-        setMessage(data.error || 'Calibration failed')
+        // 409 when a watering cycle holds the hardware, 400 for a bad
+        // endpoint. Always include the status: a 404 is FastAPI's
+        // {"detail": "Not Found"} with no error field, which otherwise shows
+        // as a bare "failed" and hides that the API is running older code
+        // than the page.
+        const detail = data.error || data.detail
+        setMessage(
+          detail
+            ? `Calibration failed (${response.status}): ${detail}`
+            : `Calibration failed (HTTP ${response.status}). If this is a 404, ` +
+              'the API is older than this page — restart greenthumb-api.',
+        )
         return
       }
       setResults(data)
@@ -96,9 +106,8 @@ export function CalibrationPanel() {
 
       <div className="general-settings-form">
         <p className="field-hint">
-          Measures each sensor's own dry and wet endpoints. Sensors read
-          differently from each other in identical conditions, so calibrating
-          them individually keeps that spread out of the reported percentage.
+          Measures each sensor's own dry and wet endpoints. Every sensor reads sligth
+          differently from each other in identical conditions
         </p>
 
         <div className="field-row">
